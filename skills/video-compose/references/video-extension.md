@@ -110,4 +110,4 @@ Scene A ends with a traveler stepping off a train onto a platform. Scene B opens
 
 ## Fallback branch
 
-Extension that doesn't fit forward / backward / chain — e.g. branching from a middle frame, or generating an alternate "what if" version of the same beat: treat as a new I2V from the chosen frame of the source. Extract the frame via `ffmpeg`, upload it (so the URL is publicly reachable for PAI's `jm-assets` endpoint), and pass via `--reference-image-url`.
+Extension that doesn't fit forward / backward / chain — e.g. branching from a middle frame, or generating an alternate "what if" version of the same beat: treat as a new I2V from the chosen frame of the source. Extract the frame via `ffmpeg`, upload it (so the URL is publicly reachable for PAI's `video-generation-assets` endpoint), and pass via `--reference-image-url`.

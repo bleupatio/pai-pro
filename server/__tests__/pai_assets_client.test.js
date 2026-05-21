@@ -3,7 +3,7 @@
 // that lives in pai_client.js.
 //
 // Wire shapes mirror JM_ASSETS_FIX_VERIFIED.md (2026-05-21) — the
-// post-circuit-breaker-fix surface for jm-assets.
+// post-circuit-breaker-fix surface for video-generation-assets.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -102,7 +102,7 @@ const ERR_INVALID_WIDTH = {
 const ERR_GROUP_NOTFOUND = {
   detail: "JM asset raw failed: Ark API [CreateAsset]: NotFound.group_id — The specified asset_group is not found.",
 };
-const ERR_BREAKER_OPEN = { detail: "ark-assets/jm circuit breaker open" };
+const ERR_BREAKER_OPEN = { detail: "video-generation-assets circuit breaker open" };
 
 // ─────────────────────────────────────────────────────────────────────────
 

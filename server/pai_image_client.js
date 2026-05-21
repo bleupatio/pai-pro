@@ -172,13 +172,10 @@ export async function generateImage({ prompt, aspectRatio, imageSize, refImageUr
   if (!bytes.length) {
     throw err("transient", "Decoded image bytes are empty");
   }
-  const modelVersion = typeof body?.modelVersion === "string" && body.modelVersion
-    ? body.modelVersion
-    : getDefault("image").id;
   return {
     bytes,
     mime: mimeType || "image/png",
-    model: modelVersion,
+    model: getDefault("image").id,
     durationSeconds: (Date.now() - started) / 1000,
     costUsd: null, // PAI raw passthrough doesn't echo cost; agent shows model_registry's estimate
   };

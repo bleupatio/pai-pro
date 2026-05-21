@@ -1,9 +1,9 @@
-// PAI raw passthrough → jm-assets (asset preupload).
+// PAI raw passthrough → video-generation-assets (asset preupload).
 //
 // PAI handles auth signing and rate limiting server-side; this file is
 // cache + event-emitter + the CreateAsset → GetAsset poll loop.
 //
-// Reference: raw-models.md § "jm-assets" plus
+// Reference: raw-models.md § "video-generation-assets" plus
 // pai_bugs_for_anton_xiaodong/JM_ASSETS_FIX_VERIFIED.md (wire signatures
 // post P0 circuit-breaker fix, 2026-05-21).
 //
@@ -38,7 +38,7 @@
 //   Group expired (~1h Ark TTL) →
 //                  502 { detail: "JM asset raw failed: Ark API [CreateAsset]: NotFound.group_id ..." }
 //   Circuit breaker (regression) →
-//                  502 { detail: "ark-assets/jm circuit breaker open" }
+//                  502 { detail: "video-generation-assets circuit breaker open" }
 
 import { EventEmitter } from "node:events";
 import { callGenerate, err } from "./pai_client.js";
@@ -137,7 +137,7 @@ export function reseedFromCanvas(projectId, nodes) {
   }
 }
 
-// --- low-level: one jm-assets action ------------------------------------
+// --- low-level: one video-generation-assets action ------------------------------------
 
 // Reclassify the generic transient/transient_exhausted that pai_client.js
 // emits for HTTP 502s, when the response body matches a known Ark wire
@@ -154,7 +154,7 @@ function reclassifyAssetError(e) {
   }
   if (/circuit breaker open/i.test(m)) {
     // Should not fire post-fix; treat as P0 regression.
-    return err("infra", `jm-assets circuit breaker open (regression — page Anton): ${m}`);
+    return err("infra", `video-generation-assets circuit breaker open (regression — page Anton): ${m}`);
   }
   return e;
 }
@@ -162,7 +162,7 @@ function reclassifyAssetError(e) {
 async function jmAssetsCall({ action, payload, timeoutMs = 60_000 }) {
   try {
     return await callGenerate({
-      model: "jm-assets",
+      model: "video-generation-assets",
       payload,
       queryParams: { Action: action },
       timeoutMs,

@@ -190,7 +190,7 @@ install_deps() {
 }
 
 # ---- tunnel ---------------------------------------------------------------
-# PAI's `jm-assets` endpoint fetches video refs server-side and can't
+# PAI's `video-generation-assets` endpoint fetches video refs server-side and can't
 # reach localhost. We expose the viewer's /projects/:id/assets/... routes
 # via a free Cloudflare quick tunnel and write the URL to .tunnel_url;
 # local_mirror.js reads from there. Override the auto-launch by setting
@@ -236,7 +236,7 @@ launch_tunnel() {
         echo ""
         echo "ERROR: cloudflared tunnel did not come up in 30s."
         echo "  Video generation needs a publicly-fetchable URL for PAI's"
-        echo "  jm-assets endpoint to pull refs from, so this is a hard"
+        echo "  video-generation-assets endpoint to pull refs from, so this is a hard"
         echo "  prerequisite — the server won't start."
         echo ""
         echo "  Diagnose: tmux attach -t $TUNNEL_SESSION   (then Ctrl-b d to detach)"

@@ -209,7 +209,7 @@ function makeBadArgs(message) {
 
 /**
  * Build the array of refs to hand to a provider. Every provider that
- * accepts refs (image-generation's fileData.fileUri, jm-assets'
+ * accepts refs (image-generation's fileData.fileUri, video-generation-assets'
  * CreateAsset URL) requires a publicly-fetchable URL — server-side
  * fetch, can't reach localhost.
  *

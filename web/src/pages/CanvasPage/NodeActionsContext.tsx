@@ -84,7 +84,7 @@ export function useNodeActions(): NodeActionsContextValue {
 
 /**
  * Asset-preupload status registry, keyed by media URL. Populated by the
- * `jm-assets` preupload step on the server. ImageResultNode reads this
+ * `video-generation-assets` preupload step on the server. ImageResultNode reads this
  * to render an active/pending/rejected status chip on top of the image
  * and to tint a character's voice button red on rejection.
  *

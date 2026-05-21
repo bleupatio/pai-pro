@@ -2,7 +2,7 @@
 // Agents compare against `sent` to recover.
 
 export const VIDEO_LIMITS = {
-  // jm-video-generation. Duration caps are asymmetric across audio / video:
+  // video-generation. Duration caps are asymmetric across audio / video:
   //  - Each audio / video ref must be 1.8s-15.2s per file (the asset-upload
   //    step rejects with DurationTooLong / DurationTooShort if outside).
   //  - Audio refs: NO aggregate cap (verified: 3 audios totaling 37.84s succeed).

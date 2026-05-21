@@ -1,4 +1,4 @@
-// PAI raw passthrough → jm-video-generation.
+// PAI raw passthrough → video-generation.
 //
 // The wire payload is forwarded byte-for-byte to the upstream model, so
 // the `content[]` parts (with role: reference_image / reference_audio /
@@ -6,7 +6,7 @@
 // `resolution`, `watermark`, `generate_audio`) read as the upstream
 // model expects them.
 //
-// Reference: raw-models.md § "jm-video-generation".
+// Reference: raw-models.md § "video-generation".
 //
 // Three exported functions split the submit / poll / download flow:
 //
@@ -17,7 +17,7 @@
 
 import { callSubmit, pollStatus, downloadUrlToBuffer, err } from "./pai_client.js";
 
-const MODEL = "jm-video-generation";
+const MODEL = "video-generation";
 const SUBMIT_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 30 * 60_000; // 30 min per PAI docs recommendation
@@ -25,7 +25,7 @@ const POLL_TIMEOUT_MS = 30 * 60_000; // 30 min per PAI docs recommendation
 // Video model endpoint id forwarded inside payload.model. PAI never
 // remaps this. Endpoint rotations are rare; a code edit + one-line PR
 // is the right cadence.
-const PAI_VIDEO_ENDPOINT_ID = "ep-20260514063251-f5cmh";
+const PAI_VIDEO_ENDPOINT_ID = "pai-pro-video-endpoint-01";
 
 function buildContent({ prompt, imageAssetIds, audioAssetIds, videoAssetIds }) {
   const content = [{ type: "text", text: String(prompt) }];

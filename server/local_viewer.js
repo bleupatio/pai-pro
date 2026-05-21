@@ -129,7 +129,7 @@ registerUploadRoutes({ app, io, projects, mutatorHooks });
 registerPendingRoutes({ app, projects });
 
 registerSocketHandlers({ io, projects, nodePty });
-// Persists jm-assets terminal states (active / rejected) onto the owning
+// Persists video-generation-assets terminal states (active / rejected) onto the owning
 // node's data.metadata via the canvas mutator. Replaces .ark_cache.json.
 wireAssetSync({ projects, mutatorHooks });
 

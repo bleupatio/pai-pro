@@ -33,7 +33,7 @@ node whose `image_url` / `video_url` you provided via
 order — that's how the CLI emits derived edges). Pass
 `--ref-audio-source-id <audio_id>` once per canvas `audio_result` node
 you want as an audio ref — the CLI resolves the audio's
-`local_path`, hands it to PAI's `jm-assets` endpoint via the tunnel, and emits a derived edge
+`local_path`, hands it to PAI's `video-generation-assets` endpoint via the tunnel, and emits a derived edge
 from the audio node → the new video. When a canvas note authored the
 clip (most commonly a shot note being rendered), pass
 `--source-node-id <note_id>` — see CLAUDE.md § "Authorship edges".
@@ -42,7 +42,7 @@ position; the Timeline UI owns shot_id assignment.
 
 Each clip costs real money even after staging — only stage after the user has explicitly asked for a video.
 
-## Reference caps (jm-video-generation)
+## Reference caps (video-generation)
 
 ≤9 image refs, ≤3 audio refs, ≤3 video refs. Each audio / video ref must be **1.8s–15.2s per file**. **Video refs additionally cap at 15s aggregate** (sum across the ≤3 video refs); audio has no aggregate cap. Audio refs need an image or video anchor — they can't be the only reference. Don't preflight — submit and read `limits` + `sent` on failure. Audio / video duration is on canvas — read `audio_result.data.metadata.duration_sec` and `video_result.data.duration` from `workflow.json`. Never ffprobe canvas-local files (and ffprobe may not be installed).
 
@@ -123,7 +123,7 @@ Pick the one that fits. When unsure, read `./workflow.json` first to see what's 
 **Prompt — inline this iteration:**
 - Mark the timbre: *"Use the voice timbre from @Audio1 for the dialogue."*
 - Preserve dialogue verbatim: write as `[Character] says: "…"`, or *"the character in @Image1 says: …"* when an image ref is also attached. For V.O. without an on-screen speaker, attribute to the voice track (*"V.O. from @Audio1: …"*) — never write `@Image1 says` (images don't talk).
-- Don't demote dialogue to on-screen captions — jm-video-generation renders synced voice.
+- Don't demote dialogue to on-screen captions — video-generation renders synced voice.
 
 **Edges:** depends on which character refs attach (one `kind: "derived"` per ref).
 

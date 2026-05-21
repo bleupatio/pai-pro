@@ -52,7 +52,7 @@ export interface ImageResultMetadata extends NodeMetadataBase {
   image_size?: string
   ref_image_urls?: string[]
   grid?: string
-  /** jm-assets asset id once the preupload landed. Persisted by
+  /** video-generation-assets asset id once the preupload landed. Persisted by
    * server/services/asset_sync.js on paiAssetEvents 'update' (active).
    * Replaces the per-project .ark_cache.json sidecar. */
   asset_id?: string

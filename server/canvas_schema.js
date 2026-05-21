@@ -39,7 +39,7 @@ const metadataSchema = {
     content_type: { type: "string" },
     size_bytes: { type: "number" },
     attachment_id: { type: "string" },
-    // jm-assets preupload state, landed on the node by services/asset_sync
+    // video-generation-assets preupload state, landed on the node by services/asset_sync
     // when paiAssetEvents fires "update". Replaces the .ark_cache.json
     // sidecar — workflow.json is now the durable cache.
     asset_id: { type: "string" },
