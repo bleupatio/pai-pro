@@ -1,0 +1,1139 @@
+/*
+ * MediaExpandOverlay — V3 (top strip + media + chat bar) layout.
+ *
+ * Mounts inside .canvas-host so the overlay covers the canvas pane
+ * but leaves the agent panel on the right interactive.
+ *
+ * Layout: 3-row grid — compact top strip (prompt + ref thumbs,
+ * click-to-expand for the full panel), media in the middle, chat
+ * bar at the bottom. Picked 2026-05-11.
+ *
+ * The image gets the full card width (was 320px-sidebar-trimmed in
+ * V2). The chat bar writes straight into the per-project pty via
+ * ChatComposerContext, pre-scoped to the current node via a
+ * dismissible @-chip.
+ */
+
+.media-expand-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: rgba(4, 4, 6, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: media-expand-fade 200ms ease;
+  overscroll-behavior: contain;
+}
+@keyframes media-expand-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Close button — anchored to the content card's top-right corner. */
+.media-expand-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-2);
+  background: oklch(0.10 0.008 240);
+  color: var(--ink-0);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  z-index: 5;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+.media-expand-close:hover {
+  background: oklch(0.18 0.008 240);
+  color: var(--ink-0);
+  border-color: var(--accent);
+}
+
+/* Archived-state bar — replaces the chat composer when the overlay
+   opened against a soft-deleted node. Agent tools can't reference
+   archived nodes, so showing the chat input would lead to a confusing
+   `bad_args` failure. The "Put on canvas" button restores the node
+   (and the user can re-engage the agent against it from there). */
+.media-expand-archived-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: oklch(0.10 0.008 240 / 0.6);
+  border-top: 1px solid var(--line-2);
+  border-radius: 0 0 12px 12px;
+}
+.media-expand-archived-note {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.media-expand-archived-cta {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-2);
+  background: oklch(0.14 0.008 240);
+  color: var(--ink-0);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+.media-expand-archived-cta:hover {
+  background: oklch(0.20 0.008 240);
+  border-color: var(--accent);
+}
+
+/* ── Draft overlay ──────────────────────────────────────────────────
+   Drafts skip the media-expand-main row entirely (no GENERATING
+   placeholder); the TopStrip's panel becomes the main content, and
+   the bottom row carries Cancel + Generate. */
+.media-expand-content.media-expand-content-draft {
+  grid-template-rows: 1fr auto;
+}
+.me-top.me-top-static {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.me-top.me-top-static .me-top-panel {
+  position: static;
+  flex: 1 1 auto;
+  margin-top: 0;
+  opacity: 1;
+  pointer-events: auto;
+  max-height: none;
+  border-radius: 8px;
+}
+.me-top.me-top-static .me-top-panel-inner {
+  max-height: none;
+  height: 100%;
+}
+.media-expand-draft-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: oklch(0.10 0.008 240 / 0.6);
+  border-top: 1px solid var(--line-2);
+  border-radius: 0 0 12px 12px;
+}
+.media-expand-draft-hint {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.media-expand-draft-error {
+  font-size: 12px;
+  color: oklch(0.7 0.15 25);
+  line-height: 1.4;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.media-expand-draft-actions {
+  display: flex;
+  gap: 10px;
+}
+.media-expand-cancel-cta,
+.media-expand-generate-cta {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+.media-expand-cancel-cta {
+  background: transparent;
+  color: var(--ink-1);
+  border: 1px solid var(--line-2);
+}
+.media-expand-cancel-cta:hover { background: oklch(0.20 0.008 240); }
+.media-expand-cancel-cta:disabled { opacity: 0.4; cursor: not-allowed; }
+.media-expand-generate-cta {
+  background: oklch(0.6 0.15 145);
+  color: white;
+  border: 0;
+}
+.media-expand-generate-cta:hover { background: oklch(0.68 0.17 145); }
+.media-expand-generate-cta:disabled { opacity: 0.55; cursor: progress; }
+
+/* Audio-only stage: center an HTML5 audio element and (for TTS rows)
+   the spoken text above it. */
+.media-expand-audio-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 32px;
+  height: 100%;
+}
+.media-expand-audio-stage audio {
+  width: min(640px, 80%);
+}
+.media-expand-audio-text {
+  max-width: 640px;
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink-0);
+  text-align: center;
+}
+
+/* The bounded modal card. Three rows: top strip / media / chat bar.
+   Each row gets its own surface treatment — the strip and chat bar
+   read as recessed control surfaces; the media area sits flush. */
+.media-expand-content {
+  position: relative;
+  width: min(1200px, 96%);
+  height: min(820px, 94%);
+  background: #1a1c22;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+  padding: 12px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 10px;
+  align-items: stretch;
+  cursor: default;
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Spacers used when there's nothing to show in that row, so the grid
+   still leaves a touch of breathing room. */
+.me-top-spacer {
+  height: 4px;
+}
+.me-chat-spacer {
+  height: 4px;
+}
+
+/* ── TOP STRIP ───────────────────────────────────────────────────── */
+
+.me-top {
+  position: relative;
+  z-index: 2;
+}
+
+.me-top-bar {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  /* Right padding bumped to 48px to clear the floating close button
+     (30px wide, anchored at right:8px on the card). Without it the
+     trailing caret + ref thumbs sit underneath the × hit area. */
+  padding: 10px 48px 10px 14px;
+  background: #111318;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink-1);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+.me-top-bar:hover {
+  background: #14171d;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.me-top-bar:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 30%, transparent);
+}
+
+.me-top-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.me-top-prompt {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.me-top-empty {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.me-top-refs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  max-width: 320px;
+  overflow: hidden;
+}
+.me-top-ref {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+.me-top-ref img,
+.me-top-ref video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.me-top-ref-glyph {
+  font-size: 14px;
+}
+.me-top-ref-more {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  padding: 0 4px;
+  letter-spacing: 0.04em;
+}
+
+.me-top-label-details {
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+.me-top-details-summary {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+
+.me-top-caret {
+  font-size: 11px;
+  color: var(--ink-3);
+  transition: transform 160ms ease;
+}
+.me-top-caret-open {
+  transform: rotate(180deg);
+}
+
+/* Expandable detail panel — overlays the media area when open so the
+   image doesn't reflow / squish as the panel grows. */
+.me-top-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  max-height: 0;
+  overflow: hidden;
+  background: #111318;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    max-height 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 180ms ease;
+}
+.me-top.me-top-open .me-top-panel {
+  max-height: 60vh;
+  opacity: 1;
+  pointer-events: auto;
+}
+.me-top-panel-inner {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 60vh;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.me-top-panel-inner::-webkit-scrollbar {
+  width: 6px;
+}
+.me-top-panel-inner::-webkit-scrollbar-track {
+  background: transparent;
+}
+.me-top-panel-inner::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+/* When the top panel is open, dim the underlying media so the focus
+   reads as "you're inspecting the recipe, not the asset." */
+.media-expand-content-top-open .media-expand-main {
+  filter: brightness(0.5);
+  transition: filter 200ms ease;
+}
+.media-expand-main {
+  transition: filter 200ms ease;
+}
+
+.me-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.me-section-title {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.me-section-count {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-2);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+}
+.me-prompt {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* Draft-editable variant — same typography as .me-prompt but uses an
+   uncontrolled textarea (blur PATCHes). No mention-chip rendering;
+   the user types raw @Image1 tokens and the rest of the canvas
+   resolves them on the next render. */
+.me-prompt-textarea {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-1);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-1);
+  outline: none;
+}
+.me-prompt-textarea:focus { border-color: var(--accent); }
+
+/* Inline reference chips inside the expanded prompt. */
+.me-ref-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 2px;
+  padding: 1px 6px 1px 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--ink-1);
+  vertical-align: -3px;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+.me-ref-chip:hover {
+  border-color: var(--line-2);
+  background: rgba(255, 255, 255, 0.1);
+}
+.me-ref-chip-missing {
+  border-style: dashed;
+  color: var(--ink-3);
+}
+.me-ref-chip-thumb {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.me-ref-chip-thumb img,
+.me-ref-chip-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.me-ref-chip-glyph {
+  font-size: 10px;
+}
+.me-ref-chip-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: inherit;
+}
+
+/* Reference grid inside the expanded top panel. */
+.me-ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+.me-ref-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-1);
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--ink-2);
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+.me-ref-thumb:hover {
+  border-color: var(--line-2);
+  background: rgba(255, 255, 255, 0.08);
+}
+.me-ref-thumb-media {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #000;
+  display: grid;
+  place-items: center;
+}
+.me-ref-thumb-media img,
+.me-ref-thumb-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.me-ref-thumb-audio-glyph {
+  font-size: 22px;
+  color: var(--ink-2);
+}
+.me-ref-thumb-tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── MEDIA AREA ──────────────────────────────────────────────────── */
+
+.media-expand-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 320px;
+}
+.media-expand-main img,
+.media-expand-main video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+  border-radius: 8px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  min-height: 0;
+}
+
+/* Download pill floats over the media's top-right corner. Hover-only
+   reveal keeps the media unobstructed at rest. */
+.media-expand-download {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--ink-0);
+  font-size: 15px;
+  line-height: 1;
+  text-decoration: none;
+  opacity: 0;
+  backdrop-filter: blur(4px);
+  transition: opacity 140ms ease, background 120ms ease;
+}
+.media-expand-main:hover .media-expand-download {
+  opacity: 0.85;
+}
+.media-expand-download:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.media-expand-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+.media-expand-label {
+  color: var(--ink-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.media-expand-meta {
+  color: var(--ink-3);
+}
+
+/* Metadata key/value block under the media. */
+.media-expand-metatable {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 18px;
+  margin: 6px 0 0 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+.media-expand-metarow {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  align-items: center;
+}
+.media-expand-metarow dt {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-4, var(--ink-3));
+  flex-shrink: 0;
+  min-width: 72px;
+}
+.media-expand-metarow dd {
+  margin: 0;
+  color: var(--ink-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* Pending-generation placeholder. */
+.media-expand-generating {
+  position: relative;
+  width: min(60vh, 100%);
+  max-width: 100%;
+  background: oklch(0.1 0.01 260);
+  border-radius: 8px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  flex: 0 1 auto;
+}
+.media-expand-generating-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--accent) 14%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: pending-sweep 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.media-expand-generating-caption {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(220, 220, 230, 0.66);
+}
+
+/* ── CHAT BAR ────────────────────────────────────────────────────── */
+
+.me-chat {
+  position: relative;
+  z-index: 3;
+  background: #111318;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 8px 10px 8px 12px;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+.me-chat:focus-within {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #131620;
+}
+.me-chat.me-chat-drag {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: color-mix(in oklch, var(--accent) 8%, #111318);
+}
+
+.me-chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.me-chat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px 4px 4px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink-0);
+  line-height: 1.4;
+  user-select: none;
+}
+.me-chat-chip-arrow {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1;
+  margin-top: -1px;
+}
+.me-chat-chip-tag {
+  color: inherit;
+}
+.me-chat-chip-x {
+  all: unset;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+.me-chat-chip-x:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink-0);
+}
+
+.me-chat-chip-restore {
+  all: unset;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  line-height: 1.4;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+.me-chat-chip-restore:hover {
+  border-color: var(--accent);
+  color: var(--ink-1);
+}
+
+.me-chat-input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink-0);
+  font-family: var(
+    --font-sans,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif
+  );
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding: 6px 4px;
+  max-height: 140px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.me-chat-input::placeholder {
+  color: var(--ink-3);
+  font-style: italic;
+}
+.me-chat-input::-webkit-scrollbar {
+  width: 4px;
+}
+.me-chat-input::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.me-chat-send {
+  all: unset;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: var(--ink-0);
+  color: #0c0d12;
+  border-radius: 50%;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    opacity 120ms ease;
+}
+.me-chat-send:hover:not(:disabled) {
+  background: #fff;
+  transform: translateY(-1px);
+}
+.me-chat-send:disabled {
+  cursor: default;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(0, 0, 0, 0.4);
+}
+
+/* Floating "Sent" toast — perched just above the chat bar's right
+   edge, fades in on send and out after ~1.5s. */
+.me-chat-toast {
+  position: absolute;
+  right: 16px;
+  bottom: calc(100% + 6px);
+  padding: 4px 10px;
+  background: color-mix(in oklch, var(--accent) 22%, #1a1c22);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-0);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+  pointer-events: none;
+}
+.me-chat-toast-on {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Drop mask — shown when files are dragged over the chat bar. */
+.me-chat-dropmask {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklch, var(--accent) 14%, rgba(17, 19, 24, 0.94));
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+.me-chat-dropmask-on {
+  opacity: 1;
+}
+
+/* ── Note expand panel ──────────────────────────────────────────────
+   Notes have no media bitmap — the body itself is the content. The
+   panel takes the full inner area of `.media-expand-main`, lays out
+   header + scrollable body + footer-less, and supports inline edit
+   driven by NodeActionsContext.onSaveNote. */
+.note-expand {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-1, #1a1a1f);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.note-expand[data-subtype="script"] {
+  border-color: oklch(0.55 0.14 270 / 0.55);
+}
+.note-expand-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+.note-expand-kind {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+  flex: 0 0 auto;
+}
+.note-expand[data-subtype="script"] .note-expand-kind {
+  color: oklch(0.78 0.14 270);
+}
+.note-expand-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.note-expand-label-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+.note-expand-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.note-expand-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.86);
+  cursor: pointer;
+}
+.note-expand-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+.note-expand-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.note-expand-btn-primary {
+  background: oklch(0.55 0.14 230 / 0.45);
+  border-color: oklch(0.65 0.14 230 / 0.6);
+  color: white;
+}
+.note-expand-btn-primary:hover:not(:disabled) {
+  background: oklch(0.6 0.16 230 / 0.6);
+}
+.note-expand-error {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: oklch(0.78 0.18 25);
+  background: oklch(0.3 0.1 25 / 0.25);
+  border-bottom: 1px solid oklch(0.65 0.18 25 / 0.4);
+}
+/* Body is overflow: hidden + flex column so its single inner child
+   (markdown wrapper or textarea) owns the only scroll surface, avoiding
+   stacked scrollbar tracks. */
+.note-expand-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px;
+}
+.note-expand-textarea {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+/* Full-sized headings and spacing for the overlay; the card-level
+   `.note-markdown` collapses them. This is the body's scroll surface —
+   overflow: auto so wide tables/code scroll horizontally and long
+   screenplays scroll vertically. */
+.note-markdown-expanded {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Shared thin dark-theme scrollbar for the overlay's reading and
+   editing surfaces — default browser chrome reads as bulky white-grey
+   slabs against the dark overlay. */
+.note-markdown-expanded,
+.note-expand-textarea {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+.note-markdown-expanded::-webkit-scrollbar,
+.note-expand-textarea::-webkit-scrollbar { width: 8px; height: 8px; }
+.note-markdown-expanded::-webkit-scrollbar-track,
+.note-expand-textarea::-webkit-scrollbar-track { background: transparent; }
+.note-markdown-expanded::-webkit-scrollbar-thumb,
+.note-expand-textarea::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+.note-markdown-expanded::-webkit-scrollbar-thumb:hover,
+.note-expand-textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+.note-markdown-expanded::-webkit-scrollbar-corner,
+.note-expand-textarea::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.note-markdown-expanded > :first-child { margin-top: 0; }
+.note-markdown-expanded > :last-child { margin-bottom: 0; }
+.note-markdown-expanded h1 { font-size: 1.6em; margin: 0.6em 0 0.4em; font-weight: 600; }
+.note-markdown-expanded h2 { font-size: 1.35em; margin: 0.6em 0 0.35em; font-weight: 600; }
+.note-markdown-expanded h3 { font-size: 1.15em; margin: 0.55em 0 0.3em; font-weight: 600; }
+.note-markdown-expanded h4,
+.note-markdown-expanded h5,
+.note-markdown-expanded h6 { font-size: 1em; margin: 0.5em 0 0.25em; font-weight: 600; }
+.note-markdown-expanded p { margin: 0.4em 0; }
+.note-markdown-expanded ul,
+.note-markdown-expanded ol { margin: 0.4em 0; padding-left: 1.6em; }
+.note-markdown-expanded li { margin: 0.15em 0; }
+.note-markdown-expanded code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.note-markdown-expanded pre {
+  font-size: 0.92em;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow-x: auto;
+  white-space: pre;
+}
+.note-markdown-expanded pre code {
+  background: transparent;
+  padding: 0;
+}
+.note-markdown-expanded blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
+  padding-left: 0.8em;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0.6em 0;
+}
+.note-markdown-expanded a {
+  color: oklch(0.78 0.14 230);
+  text-decoration: underline;
+}

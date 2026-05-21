@@ -1,0 +1,197 @@
+/* Canvas overlays — re-skin React Flow's MiniMap and the custom ZoomBar
+ * (which replaces RF's stock Controls strip) to match the project's
+ * dark-glass aesthetic. Theme via React Flow's --xy-* custom properties
+ * for every minimap color / stroke / fill; layer the frosted chrome and
+ * dotted micro-grid on top via direct selectors.
+ */
+
+/* ─────────────── --xy-* token overrides on the host ─────────────── */
+.canvas-host {
+  --xy-minimap-background-color: oklch(0.12 0.008 290 / 0.86);
+  --xy-minimap-mask-background-color: oklch(0.06 0.005 290 / 0.78);
+  --xy-minimap-mask-stroke-color: oklch(1 0 0 / 0.32);
+  --xy-minimap-mask-stroke-width: 1;
+  --xy-minimap-node-stroke-color: transparent;
+  --xy-minimap-node-stroke-width: 0;
+}
+
+/* ───────────────────────── MiniMap ───────────────────────── */
+
+/* Glass chrome on the wrapper itself. Background-color comes from the
+ * --xy-minimap-background-color token; the radial-gradient layered here
+ * paints a dotted micro-grid above it, echoing the main canvas dots
+ * (Background variant=Dots, gap 32 — here at 10px for a tighter weave). */
+.canvas-host .react-flow__minimap {
+  margin: 0 0 52px 14px;
+  border: 1px solid oklch(1 0 0 / 0.10);
+  border-radius: 12px;
+  background-image:
+    radial-gradient(
+      circle at 1px 1px,
+      oklch(1 0 0 / 0.045) 0.5px,
+      transparent 1.2px
+    );
+  background-size: 10px 10px;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow:
+    0 18px 40px -16px oklch(0 0 0 / 0.72),
+    0 0 0 1px oklch(1 0 0 / 0.02) inset,
+    0 1px 0 0 oklch(1 0 0 / 0.04) inset;
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.canvas-host .react-flow__minimap:hover {
+  border-color: oklch(1 0 0 / 0.16);
+  box-shadow:
+    0 22px 48px -18px oklch(0 0 0 / 0.78),
+    0 0 0 1px oklch(1 0 0 / 0.08) inset,
+    0 1px 0 0 oklch(1 0 0 / 0.05) inset;
+}
+
+/* Safari non-scaling-stroke hint — keeps the viewport outline a true 1px
+ * regardless of the minimap's SVG transform. Not expressible via tokens. */
+.canvas-host .react-flow__minimap-mask {
+  vector-effect: non-scaling-stroke;
+}
+
+/* ───────────────────────── ZoomBar ───────────────────────── */
+
+/* Horizontal pill replacing RF's stock <Controls>. Width-matches the
+ * MiniMap above it (both anchored left:14px). Inset math:
+ *   14px edge + 30px bar height + 8px gap = 52px → minimap bottom margin. */
+.canvas-host .zoom-bar {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  width: 248px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 6px;
+  background: oklch(0.12 0.008 290 / 0.86);
+  border: 1px solid oklch(1 0 0 / 0.10);
+  border-radius: 14px;
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow:
+    0 18px 40px -16px oklch(0 0 0 / 0.72),
+    0 0 0 1px oklch(1 0 0 / 0.02) inset,
+    0 1px 0 0 oklch(1 0 0 / 0.04) inset;
+  transition: border-color 220ms ease;
+  z-index: 5;
+}
+
+.canvas-host .zoom-bar:hover {
+  border-color: oklch(1 0 0 / 0.16);
+}
+
+.canvas-host .zoom-bar-btn {
+  min-width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: oklch(0.62 0.005 240);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 140ms ease;
+}
+
+.canvas-host .zoom-bar-btn:hover {
+  background: oklch(1 0 0 / 0.08);
+  color: oklch(0.96 0.01 60);
+}
+
+.canvas-host .zoom-bar-btn:active {
+  transform: scale(0.94);
+  background: oklch(1 0 0 / 0.12);
+}
+
+.canvas-host .zoom-bar-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.4) inset;
+}
+
+/* Split-track slider: bright white fill up to thumb, dim past it. The
+ * hard-stop gradient is driven by --zoom-fill, which the JSX sets
+ * inline from the live zoom percentage. */
+.canvas-host .zoom-bar-slider {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    oklch(0.96 0.01 60) 0%,
+    oklch(0.96 0.01 60) var(--zoom-fill, 50%),
+    oklch(1 0 0 / 0.12) var(--zoom-fill, 50%),
+    oklch(1 0 0 / 0.12) 100%
+  );
+}
+
+.canvas-host .zoom-bar-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 2px;
+}
+
+.canvas-host .zoom-bar-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  background: oklch(0.96 0.01 60);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.5);
+  transition: transform 120ms ease;
+}
+
+.canvas-host .zoom-bar-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.canvas-host .zoom-bar-slider::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border: 0;
+}
+
+.canvas-host .zoom-bar-slider::-moz-range-progress {
+  height: 4px;
+  background: oklch(0.96 0.01 60);
+  border-radius: 2px;
+}
+
+.canvas-host .zoom-bar-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: oklch(0.96 0.01 60);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.5);
+}
+
+/* Attribution is hidden via proOptions.hideAttribution; this is
+ * belt-and-suspenders in case a future RF version reins that in. */
+.canvas-host .react-flow__attribution {
+  display: none;
+}

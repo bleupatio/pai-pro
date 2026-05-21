@@ -1,0 +1,240 @@
+/* DraftGateModal — confirms the bypass-mode opt-in. Visually borrows
+   from .group-modal but warmer (amber accent + red emphasis on the
+   confirm button) to telegraph the irreversibility of what's about to
+   happen. Backdrop click + Escape both cancel; the Skip button stays
+   disabled until the text input matches "I understand". */
+
+.draft-gate-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0 0 0 / 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.draft-gate-modal {
+  --bg-card: oklch(0.16 0.008 290);
+  --line-1: oklch(1 0 0 / 0.08);
+  --line-2: oklch(1 0 0 / 0.14);
+  --ink-0: oklch(0.95 0.005 240);
+  --ink-1: oklch(0.82 0.005 240);
+  --ink-2: oklch(0.62 0.005 240);
+  --ink-3: oklch(0.45 0.005 240);
+  --warn: oklch(0.78 0.16 60);
+  --danger: oklch(0.62 0.21 25);
+  --danger-hover: oklch(0.7 0.23 25);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  width: 440px;
+  background: var(--bg-card);
+  border: 1px solid var(--line-1);
+  border-radius: 14px;
+  padding: 20px 22px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 24px 60px -16px oklch(0 0 0 / 0.7);
+  font-family: var(--font-sans);
+}
+
+.draft-gate-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.draft-gate-warn {
+  font-size: 18px;
+  color: var(--warn);
+}
+.draft-gate-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.draft-gate-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+.draft-gate-body p {
+  margin: 0;
+}
+.draft-gate-pricing {
+  color: var(--ink-2);
+  font-size: 11.5px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-1);
+  margin-top: 4px;
+}
+
+.draft-gate-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.draft-gate-label {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  letter-spacing: 0.01em;
+}
+.draft-gate-label code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-0);
+  background: oklch(1 0 0 / 0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.draft-gate-input {
+  width: 100%;
+  padding: 7px 10px;
+  background: oklch(1 0 0 / 0.03);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  color: var(--ink-0);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+.draft-gate-input:focus {
+  border-color: var(--warn);
+}
+.draft-gate-input:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.draft-gate-error {
+  font-size: 11.5px;
+  color: var(--danger);
+  padding: 6px 8px;
+  background: oklch(0.62 0.21 25 / 0.12);
+  border-radius: 4px;
+}
+
+.draft-gate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+.draft-gate-cancel,
+.draft-gate-confirm {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.draft-gate-cancel {
+  background: transparent;
+  color: var(--ink-1);
+  border-color: var(--line-2);
+}
+.draft-gate-cancel:hover {
+  background: oklch(1 0 0 / 0.05);
+  color: var(--ink-0);
+}
+.draft-gate-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.draft-gate-confirm {
+  background: var(--danger);
+  color: oklch(0.98 0 0);
+  border-color: var(--danger);
+  font-weight: 600;
+}
+.draft-gate-confirm:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+}
+.draft-gate-confirm:disabled {
+  background: oklch(0.62 0.21 25 / 0.35);
+  border-color: transparent;
+  color: oklch(0.98 0 0 / 0.5);
+  cursor: not-allowed;
+}
+
+/* Header chip — `drafts: on`. Subtle gray pill in the canvas header's
+   far-right slot. Click opens DraftGateModal. */
+.drafts-on-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border: 1px solid oklch(1 0 0 / 0.1);
+  border-radius: 999px;
+  background: transparent;
+  color: oklch(0.7 0.005 240);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.drafts-on-chip:hover {
+  color: oklch(0.85 0.005 240);
+  border-color: oklch(1 0 0 / 0.18);
+  background: oklch(1 0 0 / 0.04);
+}
+.drafts-on-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: oklch(0.65 0.16 145);
+}
+
+/* Bypass banner — full-width red strip below the canvas header when
+   the bypass flag is on. "Re-enable" link on the right is the only
+   clickable affordance; clicking the body does nothing (avoids
+   accidental flip-back). */
+.draft-gate-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 14px;
+  background: oklch(0.55 0.14 55);
+  color: oklch(0.98 0 0);
+  font-size: 12px;
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  border-bottom: 1px solid oklch(0.42 0.12 55);
+}
+.draft-gate-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.draft-gate-banner-warn {
+  font-size: 14px;
+}
+.draft-gate-banner-reenable {
+  background: transparent;
+  border: 1px solid oklch(1 0 0 / 0.35);
+  color: oklch(0.98 0 0);
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.draft-gate-banner-reenable:hover {
+  background: oklch(1 0 0 / 0.12);
+  border-color: oklch(1 0 0 / 0.55);
+}

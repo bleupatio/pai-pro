@@ -1,0 +1,74 @@
+{
+  "version": 2,
+  "workflow_id": "sample",
+  "title": "Sample workflow fixture",
+  "nodes": [
+    {
+      "id": "note_1",
+      "type": "note",
+      "data": {
+        "label": "Opening beat",
+        "body": "Detective Morris stands outside the diner at 3am, neon reflecting in the rain.",
+        "metadata": {
+          "author": "user",
+          "timestamp": "2026-05-11T10:00:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "image_1",
+      "type": "image_result",
+      "data": {
+        "subtype": "character",
+        "label": "Detective Morris",
+        "local_path": "assets/images/morris.png",
+        "prompt": "weathered noir detective, mid-40s",
+        "name": "Detective Morris",
+        "role": "protagonist",
+        "description": "Homicide detective with a smoking habit.",
+        "metadata": {
+          "source": "pai",
+          "task_type": "image_generation",
+          "model": "image-generation",
+          "aspect_ratio": "1:1",
+          "image_size": "2K",
+          "generated_at": "2026-05-11T10:01:00.000Z"
+        }
+      }
+    },
+    {
+      "id": "video_1",
+      "type": "video_result",
+      "data": {
+        "label": "Diner exterior",
+        "local_path": "assets/videos/diner.mp4",
+        "prompt": "neon reflections on rain-soaked street",
+        "duration": 6,
+        "aspect": "16:9",
+        "shot_id": 1,
+        "metadata": {
+          "source": "pai",
+          "task_type": "video_generation",
+          "model": "video-generation",
+          "duration": 6,
+          "aspect_ratio": "16:9",
+          "resolution": "1080p",
+          "generate_audio": false,
+          "generated_at": "2026-05-11T10:02:00.000Z"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "from": "note_1", "to": "image_1", "kind": "derived" },
+    { "from": "image_1", "to": "video_1", "kind": "derived" }
+  ],
+  "groups": [
+    {
+      "id": "group_1",
+      "title": "Scene 1",
+      "node_ids": ["note_1", "image_1", "video_1"],
+      "hue": 200
+    }
+  ]
+}

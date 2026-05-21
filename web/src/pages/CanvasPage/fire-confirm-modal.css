@@ -1,0 +1,127 @@
+/* FireConfirmModal — first-time confirmation gate for paid generation.
+   Centered modal with backdrop dim + blur. Sits above the canvas AND
+   the MediaExpandOverlay so it always wins the visual layer. */
+
+.fire-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0 0 0 / 0.55);
+  backdrop-filter: blur(3px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.fire-confirm-modal {
+  --bg-card: oklch(0.16 0.008 290);
+  --line-1: oklch(1 0 0 / 0.08);
+  --line-2: oklch(1 0 0 / 0.14);
+  --line-3: oklch(1 0 0 / 0.22);
+  --ink-0: oklch(0.95 0.005 240);
+  --ink-1: oklch(0.82 0.005 240);
+  --ink-2: oklch(0.62 0.005 240);
+  --ink-3: oklch(0.45 0.005 240);
+  --amber: oklch(0.78 0.14 70);
+  --green: oklch(0.72 0.18 145);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  width: 460px;
+  max-width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--line-2);
+  border-top: 1px solid oklch(0.78 0.14 70 / 0.45);
+  border-radius: 14px;
+  padding: 26px 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 28px 70px -16px oklch(0 0 0 / 0.75);
+  font-family: var(--font-sans);
+}
+
+.fire-confirm-icon {
+  font-size: 28px;
+  line-height: 1;
+  color: var(--amber);
+  margin: 0 auto 2px;
+}
+
+.fire-confirm-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--ink-0);
+  letter-spacing: -0.005em;
+}
+
+.fire-confirm-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-1);
+  text-align: center;
+}
+
+.fire-confirm-price {
+  margin: 6px 0 2px;
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-align: center;
+  color: var(--ink-0);
+}
+
+.fire-confirm-footnote {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.fire-confirm-actions {
+  display: flex;
+  justify-content: stretch;
+  gap: 10px;
+  margin-top: 8px;
+}
+.fire-confirm-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+.fire-confirm-btn:hover {
+  border-color: var(--line-3);
+  color: var(--ink-0);
+}
+.fire-confirm-btn:focus-visible {
+  outline: 2px solid var(--line-3);
+  outline-offset: 1px;
+}
+.fire-confirm-btn-primary {
+  background: oklch(0.72 0.18 145 / 0.20);
+  color: oklch(0.92 0.10 145);
+  border-color: oklch(0.72 0.18 145 / 0.40);
+}
+.fire-confirm-btn-primary:hover {
+  background: oklch(0.72 0.18 145 / 0.32);
+  border-color: oklch(0.72 0.18 145 / 0.55);
+  color: oklch(0.96 0.10 145);
+}
+.fire-confirm-btn-primary:focus-visible {
+  outline-color: oklch(0.72 0.18 145 / 0.65);
+}

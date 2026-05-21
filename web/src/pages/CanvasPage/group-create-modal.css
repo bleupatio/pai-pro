@@ -1,0 +1,136 @@
+/* GroupCreateModal — title input + hue picker + confirm/cancel.
+   Visual style matches v3's existing dark surfaces. Centered modal
+   with a backdrop click-out. */
+
+.group-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0 0 0 / 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.group-modal {
+  --bg-card: oklch(0.16 0.008 290);
+  --line-1: oklch(1 0 0 / 0.08);
+  --line-2: oklch(1 0 0 / 0.14);
+  --line-3: oklch(1 0 0 / 0.22);
+  --ink-0: oklch(0.95 0.005 240);
+  --ink-1: oklch(0.82 0.005 240);
+  --ink-2: oklch(0.62 0.005 240);
+  --ink-3: oklch(0.45 0.005 240);
+  --accent: oklch(0.78 0.16 60);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  width: 380px;
+  background: var(--bg-card);
+  border: 1px solid var(--line-1);
+  border-radius: 14px;
+  padding: 22px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 24px 60px -16px oklch(0 0 0 / 0.7);
+  font-family: var(--font-sans);
+}
+
+.group-modal-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group-modal-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-0);
+}
+.group-modal-sub {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.group-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.group-modal-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.group-modal-input {
+  background: oklch(0.10 0.008 290);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--ink-0);
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 150ms;
+}
+.group-modal-input:focus {
+  border-color: var(--line-3);
+}
+
+.group-modal-hues {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.group-modal-hue {
+  --swatch-hue: 220;
+  height: 36px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: oklch(0.55 0.10 var(--swatch-hue) / 0.32);
+  cursor: pointer;
+  transition: border-color 150ms, transform 150ms;
+}
+.group-modal-hue:hover {
+  border-color: var(--line-3);
+}
+.group-modal-hue.selected {
+  border-color: oklch(0.85 0.12 var(--swatch-hue));
+  box-shadow: 0 0 0 2px oklch(0.55 0.10 var(--swatch-hue) / 0.45);
+}
+
+.group-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.group-modal-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+}
+.group-modal-btn:hover:not(:disabled) {
+  border-color: var(--line-3);
+}
+.group-modal-btn-primary {
+  background: oklch(0.78 0.16 60 / 0.18);
+  color: oklch(0.92 0.10 60);
+  border-color: oklch(0.78 0.16 60 / 0.40);
+}
+.group-modal-btn-primary:hover:not(:disabled) {
+  background: oklch(0.78 0.16 60 / 0.28);
+}
+.group-modal-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

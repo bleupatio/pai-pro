@@ -1,0 +1,232 @@
+/* GroupFrameNode visual chrome — V1 canon (verbatim port from
+   pai-v2's `node-group-frame.css`, picked via pick-variation pass A
+   on 2026-05-07).
+ *
+ * Translucent fill at oklch(0.55 0.10 var(--group-hue) / 0.18) with
+ * the title rendered as plain text above the frame's top edge. No
+ * border. Lightest visual weight; relies on hue saturation alone to
+ * suggest grouping.
+ *
+ * Pointer-events: none on .group-fill so clicks pass through the
+ * backdrop to whichever member node renders on top. Members are NOT
+ * React Flow children — they're siblings, with z-index ordering
+ * doing the visual stacking (frame: 0, members: 1).
+ */
+
+.group-frame {
+  /* --group-hue is set inline from data.hue (0-360) */
+  width: 100%;
+  height: 100%;
+  position: relative;
+  pointer-events: none;
+}
+
+.group-fill {
+  position: absolute;
+  inset: 0;
+  background: oklch(0.55 0.10 var(--group-hue, 220) / 0.18);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.group-title {
+  position: absolute;
+  left: 0;
+  top: -28px;
+  font-size: 13px;
+  font-weight: 500;
+  color: oklch(0.78 0.1 var(--group-hue, 220));
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* PR-C1: title is now interactive (click → palette, dbl-click → edit).
+   Switched from <span pointer-events:none> to a <button> + <input>.
+   Both rebrand the chrome to look like the original title text — no
+   button border, no input border-box. */
+.group-title-button {
+  pointer-events: auto;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  display: inline-block;
+  /* Inherit the .group-title visual so the button looks identical
+     to the previous span. */
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  /* Subtle hover affordance — the title takes a faint underline so
+     users discover it's clickable without bordering the whole row. */
+  border-bottom: 1px dashed transparent;
+  transition: border-color 120ms ease;
+}
+.group-title-button:hover {
+  border-bottom-color: oklch(0.78 0.1 var(--group-hue, 220) / 0.4);
+}
+.group-title-button:focus-visible {
+  outline: 2px solid oklch(0.78 0.1 var(--group-hue, 220) / 0.6);
+  outline-offset: 2px;
+}
+.group-title-empty {
+  color: oklch(0.55 0.05 var(--group-hue, 220) / 0.6);
+  font-style: italic;
+}
+
+.group-title-input {
+  pointer-events: auto;
+  background: oklch(0.18 0.01 240 / 0.92);
+  border: 1px solid oklch(0.78 0.1 var(--group-hue, 220) / 0.45);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin: -2px -6px;
+  font: inherit;
+  color: oklch(0.95 0.005 240);
+  outline: none;
+  width: max(160px, 50%);
+  max-width: 100%;
+  /* The input replaces the .group-title's text rendering, so reset
+     the truncation rules — typing a long title should expand the
+     input naturally up to its max-width, not ellipsize. */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Recolor palette — small floating row of swatches that appears next
+   to the title on click. Positioned below the title (top: 0) so it
+   sits inside the frame's vertical space, not in the title's gutter. */
+.group-palette {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  background: oklch(0.18 0.01 240 / 0.94);
+  border: 1px solid oklch(1 0 0 / 0.12);
+  border-radius: 8px;
+  pointer-events: auto;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+.group-palette-swatch {
+  --swatch-hue: 220;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid oklch(1 0 0 / 0.18);
+  background: oklch(0.6 0.18 var(--swatch-hue));
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    transform 100ms ease,
+    border-color 120ms ease;
+}
+.group-palette-swatch:hover {
+  transform: scale(1.12);
+  border-color: oklch(1 0 0 / 0.45);
+}
+.group-palette-swatch-active {
+  border-color: oklch(0.95 0.005 240);
+  box-shadow: 0 0 0 2px oklch(0.95 0.005 240 / 0.18);
+}
+
+/* PR-C2: NodeResizer handles + lines. Visible only when the frame is
+   selected (NodeResizer's `isVisible` gated on `selected`).
+   `pointer-events: all` because `.group-frame` parent has
+   `pointer-events: none` (so members underneath stay clickable);
+   handles must opt back in to receive drag events.
+   Bumped from 10px to 14px so corners are easier to grab — at 10px
+   the actual hit area was ~5x5 px (half outside the node bounds). */
+.group-resize-handle {
+  width: 14px !important;
+  height: 14px !important;
+  background: oklch(0.78 0.1 var(--group-hue, 220)) !important;
+  border: 1px solid oklch(0.18 0.01 240) !important;
+  border-radius: 3px !important;
+  pointer-events: all !important;
+}
+.group-resize-line {
+  border-color: oklch(0.78 0.1 var(--group-hue, 220) / 0.45) !important;
+  pointer-events: all !important;
+}
+
+/* Confirm-delete popover. Centered inside the frame so the user's
+   eye doesn't have to leave the frame they're deleting. Stops
+   pointer-events from passing through to members below — the user
+   needs to actively dismiss / confirm. Red border accent so the
+   destructive action reads as such even at a glance. */
+.group-confirm {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  pointer-events: auto;
+  min-width: 240px;
+  max-width: 320px;
+  padding: 14px 16px;
+  background: oklch(0.18 0.01 240 / 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid oklch(0.55 0.18 25 / 0.5);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+.group-confirm-msg {
+  font-size: 13px;
+  line-height: 1.4;
+  color: oklch(0.95 0.005 240);
+}
+.group-confirm-msg strong {
+  font-weight: 600;
+  color: oklch(0.78 0.1 var(--group-hue, 220));
+}
+.group-confirm-sub {
+  font-size: 11.5px;
+  color: oklch(0.6 0.005 240);
+}
+.group-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.group-confirm-cancel,
+.group-confirm-confirm {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+.group-confirm-cancel {
+  background: transparent;
+  border: 1px solid oklch(1 0 0 / 0.18);
+  color: oklch(0.82 0.005 240);
+}
+.group-confirm-cancel:hover {
+  border-color: oklch(1 0 0 / 0.32);
+  background: oklch(1 0 0 / 0.04);
+}
+.group-confirm-confirm {
+  background: oklch(0.55 0.18 25 / 0.85);
+  border: 1px solid oklch(0.65 0.18 25 / 0.7);
+  color: oklch(0.98 0.005 240);
+  font-weight: 500;
+}
+.group-confirm-confirm:hover {
+  background: oklch(0.55 0.18 25);
+}

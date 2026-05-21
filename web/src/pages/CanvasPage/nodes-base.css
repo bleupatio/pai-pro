@@ -1,0 +1,757 @@
+/* Shared node chrome — head + body + state machine + skeleton.
+ *
+ * Ported from pai_agentic_canvas/web/src/styles.css:585-902.
+ * Tokens scoped to .canvas-host (the existing CanvasPage wrapper)
+ * since v3 hasn't shipped a global oklch token sheet yet. When v3
+ * tokens land per roadmap A.3, replace these with @import.
+ */
+
+.canvas-host {
+  /* Tokens used by image_result / video_result / audio_result / note /
+     pending_generation nodes. Inherited by all children. Values realigned
+     to pai-next/frontend-v4's palette: hue 260 base, solid OKLCH lines
+     (was alpha-on-white), 10px node radius. Accent hue is variable so
+     future tints flip in one line. */
+  --accent-h: 60;
+  --bg-0: oklch(0.14 0.005 260);
+  --bg-1: oklch(0.17 0.005 260);
+  --bg-2: oklch(0.20 0.006 260);
+  --ink-0: oklch(0.98 0.003 260);
+  --ink-1: oklch(0.88 0.005 260);
+  --ink-2: oklch(0.68 0.008 260);
+  --ink-3: oklch(0.52 0.010 260);
+  --ink-4: oklch(0.40 0.010 260);
+  --line-1: oklch(0.26 0.006 260);
+  --line-2: oklch(0.32 0.008 260);
+  --accent: oklch(0.78 0.16 var(--accent-h));
+  --accent-dim: oklch(0.78 0.16 var(--accent-h) / 0.45);
+  --accent-faint: oklch(0.78 0.16 var(--accent-h) / 0.18);
+  --accent-glow: oklch(0.78 0.16 var(--accent-h) / 0.32);
+  --state-running: oklch(0.78 0.16 var(--accent-h));
+  --state-complete: oklch(0.65 0.12 150);
+  --state-failed: oklch(0.62 0.18 25);
+  --radius-md: 10px;
+  --glow-intensity: 1;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-serif: ui-serif, Georgia, 'Times New Roman', serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+/* React Flow handles are required as edge endpoints (the projection
+ * connects shot → image / shot → clip via edges that need handle
+ * targets), but their default rendering as small visible dots above /
+ * below each node is visual noise here — pai-next doesn't expose
+ * user-drawn edges. Keep the DOM elements for edges to anchor to;
+ * hide them visually. */
+.node .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ───────────────────────── shared node frame ───────────────────────── */
+
+.node {
+  position: relative;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-2);
+  background: var(--bg-2);
+  color: var(--ink-1);
+  box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  transition:
+    border-color 160ms ease,
+    transform 180ms ease,
+    box-shadow 220ms ease,
+    opacity 240ms ease;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+.node:hover {
+  border-color: var(--line-2);
+  transform: translateY(-1px);
+}
+.node.selected {
+  border-color: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.32);
+}
+
+/* ──────────────────────────── head ──────────────────────────── */
+
+.node .node-head {
+  /* `position: relative` makes the head the containing block for the
+     asset-status chip hover popup (the popup is positioned relative to
+     *this*, not to the chip, so it can span the full card width).
+     `z-index: 6` lifts the head above the body's overlay buttons
+     (`media-expand-btn` / `media-download-btn` at z-index 5) and above
+     anything the pending chip's `opacity` animation pulls into its
+     own stacking context. */
+  position: relative;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  background: var(--bg-1);
+}
+.node .node-head .kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: lowercase;
+}
+.node .node-head .node-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.node .node-head .state-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-2);
+}
+.node .node-head .state-chip .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--ink-3);
+}
+.node[data-state='running'] .node-head .state-chip .dot {
+  background: var(--state-running);
+  box-shadow: 0 0 6px var(--accent-glow);
+  animation: node-pulse-dot 1.4s ease-in-out infinite;
+}
+.node[data-state='running'] .node-head .state-chip {
+  color: var(--ink-0);
+}
+.node[data-state='complete'] .node-head .state-chip .dot {
+  background: var(--state-complete);
+}
+.node[data-state='failed'] .node-head .state-chip .dot {
+  background: var(--state-failed);
+}
+.node[data-state='pending'] {
+  opacity: 0.72;
+}
+.node[data-state='pending'] .node-body {
+  filter: saturate(0.4);
+}
+
+@keyframes node-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ──────────────────────────── body ──────────────────────────── */
+
+.node .node-body {
+  position: relative;
+}
+
+.node[data-state='running'] {
+  box-shadow: 0 0 0 1px var(--accent-dim), 0 0 calc(22px * var(--glow-intensity)) var(--accent-faint);
+}
+
+/* ─────────────────────── shared foot row (image_result / video_result / note) ─────────────────────── */
+
+.node .node-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--line-1);
+}
+
+/* React Flow makes nodes draggable by default. Elements with `nodrag`
+ * skip that, so users can select text inside (model IDs, note bodies).
+ */
+.node .nodrag {
+  user-select: text;
+  cursor: text;
+}
+
+.node[data-state='failed'] {
+  border-color: oklch(0.45 0.10 25);
+}
+
+/* Asset-preupload status badge — three states: active (✓), pending (⏳),
+   rejected (✗). Absent map entry = no chip (default state when
+   AssetStatusContext is empty). Lives in the card header (.node-head) so
+   it never overlays the media body.
+
+   Intentionally NOT `position: relative` — the hover popup positions
+   against `.node-head` (its nearest positioned ancestor) so it can
+   span the full card width instead of collapsing to the chip's tiny
+   containing block. */
+.asset-status-chip {
+  min-width: 16px;
+  height: 14px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 7px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  pointer-events: auto;
+  cursor: default;
+  user-select: none;
+}
+.asset-status-chip-active {
+  background: oklch(0.6 0.14 150 / 0.78);
+  border-color: oklch(0.75 0.12 150 / 0.55);
+}
+.asset-status-chip-pending {
+  background: rgba(0, 0, 0, 0.55);
+  animation: asset-status-pending-pulse 1400ms ease-in-out infinite;
+}
+.asset-status-chip-rejected {
+  background: oklch(0.55 0.18 25 / 0.85);
+  border-color: oklch(0.72 0.15 25 / 0.6);
+}
+/* Inline label on the rejected chip — the one state we surface in plain
+   text so the failure registers without hovering. */
+.asset-status-chip .asset-status-chip-text {
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+/* Hover popup. Uses `data-tip` (set by AssetStatusChip) so screen readers
+   read the `aria-label` and sighted users get the rich tooltip via
+   `:hover::after`. Anchored to the chip's bottom-right, so it falls into
+   the media body's area (which has room) instead of trying to escape the
+   card's `overflow: hidden` clip above. */
+.asset-status-chip[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  /* Anchored to the containing block (`.node-head`), which is the full
+     card width. `top: 100% + 4px` drops the popup just below the
+     header into the media body. `left: 8px / right: 8px` keeps it
+     slightly inset from the card edges, giving the consistent
+     "slightly narrower than the node" footprint regardless of card
+     size — short copy gets breathing room, long copy wraps. */
+  top: calc(100% + 4px);
+  left: 8px;
+  right: 8px;
+  z-index: 20;
+  display: block;
+  padding: 7px 10px;
+  background: oklch(0.18 0.01 240 / 0.96);
+  color: var(--ink-0);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+}
+.asset-status-chip[data-tip]:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+@keyframes asset-status-pending-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Hover-revealed expand button. The primary affordance is now
+   double-click on the media body (paired with cursor: zoom-in), which
+   covers the discoverability gap; the button remains as a hover-only
+   secondary trigger for click-oriented users. Ported from
+   styles.css:1611-1637. */
+.media-expand-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--ink-1);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  z-index: 5;
+  transition: opacity 140ms ease, background 120ms ease;
+}
+.node:hover .media-expand-btn {
+  opacity: 0.85;
+}
+.media-expand-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+/* Download button sits to the left of the expand button in the same
+   top-right cluster. 24px wide + 6px gap = right: 38px. Same hover-
+   reveal as the expand button so the corner stays uncluttered at rest. */
+.media-download-btn {
+  position: absolute;
+  top: 8px;
+  right: 38px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--ink-1);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  text-decoration: none;
+  opacity: 0;
+  z-index: 5;
+  transition: opacity 140ms ease, background 120ms ease;
+}
+.node:hover .media-download-btn {
+  opacity: 0.85;
+}
+.media-download-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+/* Asset-status chip + expand button live in the same top-right corner.
+   The chip sits above (at top: 6px), the expand button slightly below
+   (top: 8px, z-index: 5 vs chip z-index: 2). When both are present the
+   chip stays visible because it's pointer-events: auto and the button
+   is hidden until hover — at which point the chip animation can still
+   pulse on top of an unhovered button. */
+
+/* ─────────────────────── pending_generation ─────────────────────── */
+
+/* The agent-fires-generation ghost. Reuses .node.image_result chrome
+   with a .pending modifier — dashed border, no elevation, shimmer
+   sweep over the body. Cleared from the canvas when the real node
+   (matching prompt) lands. Ported from
+   pai_agentic_canvas/web/src/styles.css:1216-1305. */
+.node.pending {
+  border-style: dashed;
+  border-color: var(--line-2);
+  box-shadow: none;
+}
+.node.pending.selected {
+  border-color: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.32);
+}
+.node.pending.failed {
+  border-style: solid;
+  border-color: oklch(0.55 0.12 25);
+}
+.node.pending.failed .pending-shimmer {
+  display: none;
+}
+.pending-glyph {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  color: var(--ink-3);
+}
+.pending-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--accent) 18%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: pending-sweep 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes pending-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Pending-generation prompt-on-body view. Long prompts fade out at the
+   bottom; the hint pill points users at the expand affordance. Both
+   render above .pending-shimmer (pointer-events: none). */
+.pending-gen-prompt {
+  position: absolute;
+  inset: 8px 8px 22px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+}
+.node.pending.failed .pending-gen-prompt {
+  color: oklch(0.65 0.1 25);
+}
+.pending-gen-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 14, 18, 0.78);
+  backdrop-filter: blur(6px);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: rgba(220, 220, 230, 0.78);
+  cursor: pointer;
+  white-space: nowrap;
+  z-index: 2;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
+}
+.pending-gen-hint:hover {
+  color: var(--ink-0);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(20, 20, 26, 0.88);
+}
+.node.pending.failed .pending-gen-hint {
+  display: none;
+}
+
+/* Draft chrome (PR #2 of the draft-gate). Textarea replaces the read-
+   only prompt; head carries model+resolution; foot pairs Cancel (left)
+   with Generate · $X.XX (right). */
+.node.pending[data-stage="draft"] .pending-shimmer { display: none; }
+.node.pending[data-stage="draft"] .node-foot {
+  justify-content: space-between;
+}
+/* Drafts pack kind+model+res into the head; ellipsize when tight.
+   `flex: 1 1 auto + min-width: 0` is what actually lets a flex child
+   shrink past its content width; `display: block` overrides the
+   default `inline-flex` on .kind so text-overflow takes effect.
+   Pinning .node-head-right with flex-shrink: 0 keeps the state chip
+   from getting squeezed into the kind text. */
+.node.pending[data-stage="draft"] .node-head .kind {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node.pending[data-stage="draft"] .node-head .node-head-right {
+  flex-shrink: 0;
+}
+.draft-prompt {
+  position: absolute;
+  /* bottom inset clears the .pending-gen-hint pill */
+  inset: 8px 8px 28px 8px;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 0;
+  outline: none;
+}
+.draft-prompt:focus { background: rgba(255, 255, 255, 0.03); }
+.draft-prompt::placeholder { color: var(--ink-3); opacity: 0.6; }
+.draft-error {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  font-size: 10px;
+  color: oklch(0.7 0.15 25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 3;
+  pointer-events: none;
+}
+.btn-cancel {
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.btn-cancel:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink-1); }
+.btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-generate-primary {
+  background: oklch(0.6 0.15 145);
+  color: white;
+  border: 0;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.btn-generate-primary:hover { background: oklch(0.68 0.17 145); }
+.btn-generate-primary:disabled { opacity: 0.55; cursor: progress; }
+
+/* ─────────────────────── audio_result ─────────────────────── */
+
+/* Compact horizontal pill. Reuses the .node frame (border / background /
+   radius / shadow / selected glow) but lays out as a single row — play
+   button + label/scrubber stack — instead of the head/body/foot chrome
+   the other nodes use. Audio has no spatial extent, so the standard
+   chrome would just inflate the card without adding signal. */
+.node.audio_result {
+  width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+.node.audio_result .audio-play {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink-1);
+  color: var(--bg-0);
+  font-size: 10px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+.node.audio_result .audio-play:hover {
+  background: var(--accent);
+}
+.node.audio_result .audio-play.playing {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-faint);
+}
+.node.audio_result .audio-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.node.audio_result .audio-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.node.audio_result .audio-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-1);
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node.audio_result .audio-subtype {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+.node.audio_result .audio-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.node.audio_result .audio-scrubber {
+  flex: 1 1 auto;
+  position: relative;
+  height: 3px;
+  background: var(--line-1);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.node.audio_result .audio-scrubber-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 80ms linear;
+}
+.node.audio_result .audio-time {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────────────────── video_result shot-badge ─────────────────────── */
+
+/* Top-left amber chip on a video_result thumbnail, indicating the clip
+   is assigned to a numeric reel slot. Read-only: assign/clear both
+   live in the TimelinePanel (drag from Available to assign, Remove
+   button to clear), so this element is non-interactive. Unassigned
+   clips render no badge.
+   Adapted from pai_agentic_canvas/web/src/styles.css:2280-2307 — the
+   original two-state hover-reveal `#+` / `#N` button was flattened to
+   a single indicator once the timeline took over reel curation. */
+.shot-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: oklch(0.88 0.12 85);
+  background: oklch(0.25 0.08 85 / 0.85);
+  border: 1px solid oklch(0.82 0.16 85 / 0.45);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  display: inline-grid;
+  place-items: center;
+  z-index: 5;
+}
+
+/* Headings collapse to body size so the card stays legible at the small
+   font; the expand overlay uses `.note-markdown-expanded` for real sizing.
+   user-select: none so a press on body text starts a React Flow drag
+   instead of a text selection — selection lives in the overlay. */
+.note-markdown {
+  color: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.note-markdown > :first-child { margin-top: 0; }
+.note-markdown > :last-child { margin-bottom: 0; }
+.note-markdown h1,
+.note-markdown h2,
+.note-markdown h3,
+.note-markdown h4,
+.note-markdown h5,
+.note-markdown h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 0.5em 0 0.25em;
+}
+.note-markdown p { margin: 0.25em 0; }
+.note-markdown ul,
+.note-markdown ol { margin: 0.25em 0; padding-left: 1.25em; }
+.note-markdown li { margin: 0.1em 0; }
+.note-markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.note-markdown pre {
+  font-size: 0.9em;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow-x: auto;
+  white-space: pre;
+}
+.note-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+.note-markdown blockquote {
+  border-left: 2px solid rgba(255, 255, 255, 0.18);
+  padding-left: 0.6em;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0.4em 0;
+}
+.note-markdown a {
+  color: oklch(0.78 0.14 230);
+  text-decoration: underline;
+}
+
+/* Buttons anchor against .node (not .node-body) so they stay pinned while
+   the body scrolls; offset clears the head bar that owns the top 36px. */
+.node.note > .media-expand-btn { top: 36px; }
+.node.note > .media-download-btn { top: 36px; }
+
+/* Default browser scrollbar looks chunky against the card; replace
+   with a 6px translucent thumb. */
+.node.note .node-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+.node.note .node-body::-webkit-scrollbar { width: 6px; }
+.node.note .node-body::-webkit-scrollbar-track { background: transparent; }
+.node.note .node-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+.node.note .node-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}

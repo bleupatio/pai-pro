@@ -1,0 +1,146 @@
+/**
+ * useWorkflow — Socket.IO-subscribed bundle for the active project.
+ *
+ * On mount we GET /projects/:id once for the initial state, then
+ * subscribe to the project's Socket.IO room. Server pushes
+ * `canvas-state`, `canvas-positions`, and `pending-generations` on
+ * every disk change (chokidar watcher + our HTTP write endpoints both
+ * cause these to fire). The hook returns the latest event payload.
+ */
+import { useEffect, useState } from 'react'
+import { getSocket, VIEWER_URL } from '@/lib/socket'
+import { mergeWorkflow, synthesizeAssetUrls } from '@/lib/workflowMerge'
+import type { PendingGeneration, ProjectBundle, Workflow } from '@/types/canvas'
+import type { CanvasPositionsState } from '@/lib/canvas-stub'
+import type { AssetStatusEntry } from '@/pages/CanvasPage/NodeActionsContext'
+
+interface UseWorkflowResult {
+  workflow: Workflow | null
+  canvasPositions: CanvasPositionsState
+  pendingGenerations: PendingGeneration[]
+  assetStatuses: ReadonlyMap<string, AssetStatusEntry>
+  bundle: ProjectBundle | null
+  loading: boolean
+  error: string | null
+}
+
+const EMPTY_POSITIONS: CanvasPositionsState = { positions: {}, groupFrames: {} }
+const EMPTY_PENDING: PendingGeneration[] = []
+const EMPTY_ASSET_STATUSES: ReadonlyMap<string, AssetStatusEntry> = new Map()
+
+export function useWorkflow(projectId: string | null): UseWorkflowResult {
+  const [workflow, setWorkflow] = useState<Workflow | null>(null)
+  const [canvasPositions, setCanvasPositions] =
+    useState<CanvasPositionsState>(EMPTY_POSITIONS)
+  const [pendingGenerations, setPendingGenerations] =
+    useState<PendingGeneration[]>(EMPTY_PENDING)
+  const [assetStatuses, setAssetStatuses] =
+    useState<ReadonlyMap<string, AssetStatusEntry>>(EMPTY_ASSET_STATUSES)
+  const [bundle, setBundle] = useState<ProjectBundle | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (projectId === null) {
+      setWorkflow(null)
+      setCanvasPositions(EMPTY_POSITIONS)
+      setPendingGenerations(EMPTY_PENDING)
+      setAssetStatuses(EMPTY_ASSET_STATUSES)
+      setBundle(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+
+    fetch(`${VIEWER_URL}/projects/${encodeURIComponent(projectId)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`viewer ${res.status}: ${res.statusText}`)
+        return res.json() as Promise<ProjectBundle>
+      })
+      .then((b) => {
+        if (cancelled) return
+        setBundle(b)
+        setWorkflow((prev) =>
+          mergeWorkflow(prev, synthesizeAssetUrls(b.canvas_state, projectId)),
+        )
+        setCanvasPositions(b.canvas_positions ?? EMPTY_POSITIONS)
+        setPendingGenerations(b.pending_generations ?? EMPTY_PENDING)
+        setLoading(false)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : String(err))
+        setLoading(false)
+      })
+
+    const socket = getSocket()
+    const onCanvasState = (msg: { projectId: string; state: Workflow | null }) => {
+      if (msg.projectId === projectId) {
+        // Structural-sharing merge: keep workflow identity stable when the
+        // broadcast carries no real change (common — the agent reads then
+        // rewrites workflow.json with identical content), and preserve
+        // per-node identity for unchanged nodes so downstream useMemo /
+        // React Flow reconciliation can short-circuit.
+        setWorkflow((prev) =>
+          mergeWorkflow(prev, synthesizeAssetUrls(msg.state, projectId)),
+        )
+      }
+    }
+    const onCanvasPositions = (msg: {
+      projectId: string
+      state: CanvasPositionsState
+    }) => {
+      if (msg.projectId === projectId) setCanvasPositions(msg.state)
+    }
+    const onPendingGenerations = (msg: {
+      projectId: string
+      state: PendingGeneration[]
+    }) => {
+      if (msg.projectId !== projectId) return
+      const incoming = Array.isArray(msg.state) ? msg.state : []
+      setPendingGenerations(incoming.length > 0 ? incoming : EMPTY_PENDING)
+    }
+    const onAssetStatusSnapshot = (msg: {
+      projectId: string
+      state: Record<string, AssetStatusEntry>
+    }) => {
+      if (msg.projectId !== projectId) return
+      const entries = Object.entries(msg.state ?? {})
+      setAssetStatuses(entries.length > 0 ? new Map(entries) : EMPTY_ASSET_STATUSES)
+    }
+    const onAssetStatusUpdate = (msg: {
+      url: string
+      status: AssetStatusEntry['status']
+      reason?: string
+    }) => {
+      if (!msg?.url) return
+      setAssetStatuses((prev) => {
+        const next = new Map(prev)
+        const entry: AssetStatusEntry = { status: msg.status }
+        if (msg.reason !== undefined) entry.reason = msg.reason
+        next.set(msg.url, entry)
+        return next
+      })
+    }
+    socket.on('canvas-state', onCanvasState)
+    socket.on('canvas-positions', onCanvasPositions)
+    socket.on('pending-generations', onPendingGenerations)
+    socket.on('ark-assets-snapshot', onAssetStatusSnapshot)
+    socket.on('ark-assets', onAssetStatusUpdate)
+    socket.emit('subscribe', { projectId })
+
+    return () => {
+      cancelled = true
+      socket.off('canvas-state', onCanvasState)
+      socket.off('canvas-positions', onCanvasPositions)
+      socket.off('pending-generations', onPendingGenerations)
+      socket.off('ark-assets-snapshot', onAssetStatusSnapshot)
+      socket.off('ark-assets', onAssetStatusUpdate)
+    }
+  }, [projectId])
+
+  return { workflow, canvasPositions, pendingGenerations, assetStatuses, bundle, loading, error }
+}

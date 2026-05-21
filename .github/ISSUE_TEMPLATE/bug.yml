@@ -56,5 +56,5 @@ body:
     attributes:
       label: Logs
       description: |
-        If the bug surfaced in the viewer or a generation CLI, paste the relevant tail of `docker logs pai-canvas` (or whatever the bug-relevant log source is). Use code fences for readability.
+        If the bug surfaced in the viewer or a generation CLI, paste the relevant tail of `docker logs pai-pro` (or whatever the bug-relevant log source is). Use code fences for readability.
       render: shell

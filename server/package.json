@@ -1,0 +1,31 @@
+{
+  "name": "@pai-pro/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Media-generation CLIs (scripts/) + viewer server (local_viewer.js) for pai-pro. Includes a node-pty bridge for the in-browser terminal.",
+  "scripts": {
+    "viewer": "node --watch local_viewer.js",
+    "test": "node --test __tests__/*.test.js",
+    "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "chokidar": "^4.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "lru-cache": "^11.0.2",
+    "multer": "^2.1.1",
+    "p-queue": "^8.0.1",
+    "sharp": "^0.34.0",
+    "socket.io": "^4.8.1",
+    "steno": "^4.0.2"
+  },
+  "optionalDependencies": {
+    "node-pty": "^1.0.0"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}

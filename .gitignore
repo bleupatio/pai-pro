@@ -1,0 +1,87 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local project state (per-project runtime data; one folder per project)
+workflow.json
+projects/
+.active_project
+
+# Build output
+dist/
+dist-node/
+build/
+.vite/
+.turbo/
+.vercel/
+*.tsbuildinfo
+
+# SQLite (runtime state)
+*.db
+*.db-journal
+
+# Media / generated artifacts (runtime)
+media/
+/data/
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Claude Code local config (machine-specific)
+.claude/settings.local.json
+
+# .claude/skills/ — local skill stash (e.g. pick-variation borrowed from
+# other repos). The repo-root skills/*-compose/ folders are the source of
+# truth for the seven filmmaking skills and ARE tracked.
+.claude/skills/
+
+# Local session resume notes (single + multi: `claude --resume <id>` snippets).
+session*.txt
+
+# Cloudflare tunnel state (rotates per ./start.sh; see CLAUDE.md)
+.tunnel_url
+.tunnel_url.log
+
+# Docs — kept local only; not tracked.
+docs/
+
+# Local-only tech debt audits.
+TECH_DEBT_AUDIT.md
+
+# Design bundles + scratch work
+tmp/
+
+# test/ — local-only smoke tests, scratch outputs, .env with keys
+test/
+
+# server/__tests__/_smoke/ — local mutator stress harness
+# (render_test_canvas.sh + presets/). The real Jest suite is the *.test.js
+# files alongside it and stays tracked; the _smoke/ underscore prefix marks
+# this as scratch.
+server/__tests__/_smoke/
+
+# Stale symlink from early smoke testing (points into projects/, already ignored).
+# No trailing slash — git treats symlinks as files, not directories.
+wiki

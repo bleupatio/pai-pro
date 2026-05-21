@@ -1,0 +1,13 @@
+# Keep Linux-bound files LF on every OS so the Docker container can run
+# entrypoint.sh / parse Dockerfile + compose without "no such file or
+# directory: /bin/sh^M" surprises on Windows checkouts.
+#
+# See docs/proposals/09-windows-compat.md §2.1 for the failure mode this
+# prevents and the rationale for each pattern.
+
+* text=auto
+
+*.sh         text eol=lf
+Dockerfile   text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf

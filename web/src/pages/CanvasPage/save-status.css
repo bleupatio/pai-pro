@@ -1,0 +1,95 @@
+/* SaveStatusPill — floating pill at bottom-center of the canvas pane.
+ *
+ * Ported from pai-v2 _components/save-status.css. Tokens are scoped on
+ * the wrap (v3 has no global token sheet yet — same pattern as
+ * AgentPanel).
+ */
+
+.save-pill-wrap {
+  /* Pre-A.3 inline tokens. Replace with @import when v3 tokens land. */
+  --bg-pill: oklch(0.12 0.008 290 / 0.85);
+  --line-2: oklch(1 0 0 / 0.14);
+  --ink-1: oklch(0.82 0.005 240);
+  --ink-3: oklch(0.45 0.005 240);
+  --ink-4: oklch(0.32 0.005 240);
+  --state-running: oklch(0.78 0.16 60);
+  --state-failed: oklch(0.62 0.18 25);
+  --accent-glow: oklch(0.78 0.16 60 / 0.32);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.save-pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 11px;
+  background: var(--bg-pill);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  box-shadow:
+    0 6px 24px -8px oklch(0 0 0 / 0.6),
+    0 0 0 1px oklch(1 0 0 / 0.02) inset;
+  transition:
+    color 200ms ease,
+    border-color 200ms ease;
+}
+
+.save-pill .save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ink-4);
+  transition:
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.save-pill.saved {
+  color: var(--ink-3);
+}
+.save-pill.saved .save-dot {
+  background: var(--ink-4);
+}
+
+.save-pill.saving {
+  color: var(--ink-1);
+}
+.save-pill.saving .save-dot {
+  background: var(--state-running);
+  box-shadow: 0 0 6px var(--accent-glow);
+  animation: save-pulse-dot 1.4s ease-in-out infinite;
+}
+
+.save-pill.failed {
+  color: oklch(0.72 0.15 25);
+  border-color: oklch(0.45 0.18 25 / 0.5);
+}
+.save-pill.failed .save-dot {
+  background: var(--state-failed);
+}
+
+@keyframes save-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

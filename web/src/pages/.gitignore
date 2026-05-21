@@ -1,0 +1,5 @@
+# pick-variation throwaway pages live in _tmp/<feature>/. Ignore the
+# subdirs but keep _tmp/TmpRoute.tsx tracked (it's the route registration
+# imported by App.tsx — fresh clones need it).
+_tmp/*/
+

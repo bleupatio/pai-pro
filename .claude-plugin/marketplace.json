@@ -1,0 +1,24 @@
+{
+  "name": "pai-pro",
+  "owner": {
+    "name": "Utopai Research",
+    "url": "https://github.com/Utopai-Research"
+  },
+  "plugins": [
+    {
+      "name": "pai-pro",
+      "source": "./",
+      "description": "Filmmaking skills for Claude Code: scripts, characters, locations, storyboards, clips, voices, and a local canvas to assemble them.",
+      "version": "0.1.0",
+      "skills": [
+        { "name": "add-note",       "path": "skills/add-note",       "invoke": "/pai-pro:add-note" },
+        { "name": "groups-compose", "path": "skills/groups-compose", "invoke": "/pai-pro:groups-compose" },
+        { "name": "image-compose",  "path": "skills/image-compose",  "invoke": "/pai-pro:image-compose" },
+        { "name": "script-compose", "path": "skills/script-compose", "invoke": "/pai-pro:script-compose" },
+        { "name": "show-dag",       "path": "skills/show-dag",       "invoke": "/pai-pro:show-dag" },
+        { "name": "video-compose",  "path": "skills/video-compose",  "invoke": "/pai-pro:video-compose" },
+        { "name": "voice-compose",  "path": "skills/voice-compose",  "invoke": "/pai-pro:voice-compose" }
+      ]
+    }
+  ]
+}

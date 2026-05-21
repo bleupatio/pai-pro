@@ -1,0 +1,70 @@
+# pai-pro — Docker Compose stack.
+#
+# Quickstart:
+#   cp .env.example .env && $EDITOR .env
+#   docker compose up --build
+#   → http://localhost:7588
+
+services:
+  pai-pro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pai-pro:local
+    container_name: pai-pro
+    # Host port offset to 7588 by default so `./start.sh` on the host can
+    # keep using 7488 alongside Docker. Override via .env.
+    #
+    # Host-side bind pinned to 127.0.0.1 because the viewer has no auth
+    # and exposes pty:spawn (process launch in a project's cwd) over
+    # Socket.IO. The container still binds 0.0.0.0:7488 internally —
+    # required for Docker's port forwarder — but the host-visible port
+    # is loopback-only. To expose to LAN intentionally, first add auth,
+    # then drop the `127.0.0.1:` prefix.
+    ports:
+      - "127.0.0.1:${HOST_VIEWER_PORT:-7588}:7488"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      VIEWER_PORT: 7488
+      VIEWER_BIND: 0.0.0.0
+      # Re-read for the viewer's boot banner so users see the URL they
+      # should actually open, not the container-internal port.
+      HOST_VIEWER_PORT: "${HOST_VIEWER_PORT:-7588}"
+    volumes:
+      # Customer's canvas data — named volume so it survives container rebuild.
+      # NEVER rename this key across versions — customer data lives in it forever.
+      - pai_projects:/repo/projects
+      # Bind-mount the host's claude session JSONLs so the canvas can
+      # resume sessions across container restarts. Optional — if the
+      # host has no ~/.claude/projects yet, Docker creates an empty dir.
+      # ${HOME:-${USERPROFILE}} → POSIX shells use $HOME; Windows
+      # PowerShell where $env:HOME may be unset falls back to $USERPROFILE
+      # (always set by the OS).
+      - ${HOME:-${USERPROFILE}}/.claude/projects:/home/node/.claude/projects
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7488/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "2.0"
+
+  # Cloudflared "quick tunnel" runs INSIDE the pai-pro container as a
+  # background process (see entrypoint.sh). We tried a sidecar service
+  # initially, but cloudflare/cloudflared:latest is distroless (no /bin/sh)
+  # which made the URL-extraction wrapper unworkable. The viewer image
+  # already ships the cloudflared binary, so one container is simpler.
+  # Skip the tunnel by setting PUBLIC_VIEWER_URL in .env (entrypoint
+  # writes that as the canonical .tunnel_url instead).
+
+volumes:
+  # Locked key — customer data lives in this volume across container rebuilds.
+  pai_projects:

@@ -1,0 +1,45 @@
+# Keep secrets and runtime state out of the build context.
+# This file is load-bearing for credential safety — see proposal §2.6.
+
+# Secrets — NEVER let these into a layer
+.env
+.env.*
+!.env.example
+.tunnel_url
+.tunnel_url.log
+.active_project
+# Don't blanket-exclude .claude/ — it contains project hooks and
+# settings.json that the embedded agent NEEDS for proper grounding
+# (e.g., the --stage default for generate_* calls, the bash hook
+# that enforces run_in_background). Only exclude per-developer files.
+.claude/settings.local.json
+.claude/.DS_Store
+**/.credentials.json
+
+# Runtime / user data
+projects/
+workflow.json
+
+# Build artifacts (the image rebuilds these fresh)
+**/node_modules/
+**/dist/
+**/.cache/
+
+# Repo metadata
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Editor / OS
+.vscode/
+.idea/
+**/.DS_Store
+*.swp
+*.log
+
+# Docs — not needed in the image
+docs/
+
+# Test scratch
+server/__tests__/_smoke/scratch/
