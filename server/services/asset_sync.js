@@ -1,13 +1,13 @@
 // Bridge: paiAssetEvents.on("update") → canvas_mutator.updateNode patch.
 //
-// Replaces the .ark_cache.json sidecar. When an asset upload reaches a
-// terminal Ark status (active / rejected), we mirror that state onto the
-// owning canvas node's data.metadata, so the next viewer boot can
+// Replaces the .asset_cache.json sidecar. When an asset upload reaches a
+// terminal provider status (active / rejected), we mirror that state onto
+// the owning canvas node's data.metadata, so the next viewer boot can
 // reseed the in-process cache straight from workflow.json (see
 // pai_assets_client.js → reseedFromCanvas).
 //
 // Ephemeral states (pending) are NOT persisted: the chip shows them via
-// the live `ark-assets` socket event, and they resolve to a terminal
+// the live `pai-assets` socket event, and they resolve to a terminal
 // state within ~10s of CreateAsset.
 //
 // Races handled:

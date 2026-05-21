@@ -128,8 +128,8 @@ export function useWorkflow(projectId: string | null): UseWorkflowResult {
     socket.on('canvas-state', onCanvasState)
     socket.on('canvas-positions', onCanvasPositions)
     socket.on('pending-generations', onPendingGenerations)
-    socket.on('ark-assets-snapshot', onAssetStatusSnapshot)
-    socket.on('ark-assets', onAssetStatusUpdate)
+    socket.on('pai-assets-snapshot', onAssetStatusSnapshot)
+    socket.on('pai-assets', onAssetStatusUpdate)
     socket.emit('subscribe', { projectId })
 
     return () => {
@@ -137,8 +137,8 @@ export function useWorkflow(projectId: string | null): UseWorkflowResult {
       socket.off('canvas-state', onCanvasState)
       socket.off('canvas-positions', onCanvasPositions)
       socket.off('pending-generations', onPendingGenerations)
-      socket.off('ark-assets-snapshot', onAssetStatusSnapshot)
-      socket.off('ark-assets', onAssetStatusUpdate)
+      socket.off('pai-assets-snapshot', onAssetStatusSnapshot)
+      socket.off('pai-assets', onAssetStatusUpdate)
     }
   }, [projectId])
 

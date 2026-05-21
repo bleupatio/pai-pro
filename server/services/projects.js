@@ -56,7 +56,7 @@ export async function loadProject(projects, id) {
     mutationLogPath: mutationLogPath(id),
   });
   // Reseed the in-process asset cache from the canvas itself —
-  // workflow.json node metadata replaces the old .ark_cache.json sidecar.
+  // workflow.json node metadata replaces the old .asset_cache.json sidecar.
   reseedFromCanvas(id, Array.isArray(canvasState?.nodes) ? canvasState.nodes : []);
   projects.set(id, entry);
   return entry;

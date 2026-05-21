@@ -2,7 +2,7 @@
 // node:test mock timers to fast-forward the transient-retry 5s backoff
 // that lives in pai_client.js.
 //
-// Wire shapes mirror JM_ASSETS_FIX_VERIFIED.md (2026-05-21) — the
+// Wire shapes mirror ASSETS_FIX_VERIFIED.md (2026-05-21) — the
 // post-circuit-breaker-fix surface for video-generation-assets.
 
 import test from "node:test";
@@ -73,7 +73,7 @@ function withFakeTimers(fn) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Wire fixtures (post-fix shapes from JM_ASSETS_FIX_VERIFIED.md)
+// Wire fixtures (post-fix shapes from ASSETS_FIX_VERIFIED.md)
 // ─────────────────────────────────────────────────────────────────────────
 
 const GROUP_OK = {
@@ -97,10 +97,10 @@ const GET_FAILED = (id = "asset-test-1", reason = "content rejected") => ({
   Result: { Id: id, Status: "Failed", FailReason: reason },
 });
 const ERR_INVALID_WIDTH = {
-  detail: "JM asset raw failed: Ark API [CreateAsset]: InvalidParameter.WidthTooSmall — Width must be between 300px and 6000px.",
+  detail: "video-generation-assets [CreateAsset]: InvalidParameter.WidthTooSmall — Width must be between 300px and 6000px.",
 };
 const ERR_GROUP_NOTFOUND = {
-  detail: "JM asset raw failed: Ark API [CreateAsset]: NotFound.group_id — The specified asset_group is not found.",
+  detail: "video-generation-assets [CreateAsset]: NotFound.group_id — The specified asset_group is not found.",
 };
 const ERR_BREAKER_OPEN = { detail: "video-generation-assets circuit breaker open" };
 

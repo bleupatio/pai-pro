@@ -130,7 +130,7 @@ registerPendingRoutes({ app, projects });
 
 registerSocketHandlers({ io, projects, nodePty });
 // Persists video-generation-assets terminal states (active / rejected) onto the owning
-// node's data.metadata via the canvas mutator. Replaces .ark_cache.json.
+// node's data.metadata via the canvas mutator. Replaces .asset_cache.json.
 wireAssetSync({ projects, mutatorHooks });
 
 // SPA fallback (production only) — any GET that didn't match an API
