@@ -88,11 +88,11 @@ test("tryExtractPdfText: minimal real PDF round-trips to its text layer", async 
     return;
   }
   resetProbe();
-  const pdf = makeMinimalPdf("Hello PAI Canvas");
+  const pdf = makeMinimalPdf("Hello PAI Pro");
   const text = await tryExtractPdfText(pdf);
   assert.ok(text, "expected non-null text");
   assert.ok(
-    text.includes("Hello PAI Canvas"),
+    text.includes("Hello PAI Pro"),
     `expected extracted text to contain marker, got: ${JSON.stringify(text)}`,
   );
 });
