@@ -59,7 +59,7 @@ What the image gives you:
 - Non-root runtime as the `node` user (UID 1000).
 - Multi-stage build — native modules (`sharp`, `node-pty`) rebuilt against linux/glibc; runtime layer ships only what's needed.
 - `/healthz` probe verifies ffmpeg, poppler, claude CLI, volume writability, and PTY availability on every healthcheck interval.
-- An in-container Cloudflare quick tunnel for video-gen reference fetching (PAI's `jm-assets` endpoint fetches refs server-side and `localhost` is unreachable to it). Anonymous, no account required, ~3 s to land a URL. Set `PUBLIC_VIEWER_URL` in `.env` to skip the tunnel and use your own named domain instead.
+- An in-container Cloudflare quick tunnel for video-gen reference fetching (PAI's `video-generation-assets` endpoint fetches refs server-side and `localhost` is unreachable to it). Anonymous, no account required, ~3 s to land a URL. Set `PUBLIC_VIEWER_URL` in `.env` to skip the tunnel and use your own named domain instead.
 - Hardened build context — `.dockerignore` keeps `.env`, `.tunnel_url`, `projects/`, and other state out of any image layer. Credentials cannot land in the image even by accident.
 - No published image. Build-locally only, so a maintainer's laptop can never push secrets to a registry.
 
@@ -74,7 +74,7 @@ The original install path — runs Node directly on the host with Vite HMR. Use 
 - **Node.js ≥20** and **npm**
 - **[Claude Code](https://docs.claude.com/en/docs/claude-code/setup)** installed and logged in (`claude` should run from any directory)
 - **tmux** — `./start.sh` launches viewer + web in detached tmux sessions
-- **[cloudflared](https://github.com/cloudflare/cloudflared)** — `brew install cloudflared` on macOS, or [binary download](https://github.com/cloudflare/cloudflared/releases) for Linux/Windows. `./start.sh` auto-launches it as a quick tunnel so PAI's `jm-assets` endpoint can fetch local video refs from a publicly-reachable URL. Only required for video generation.
+- **[cloudflared](https://github.com/cloudflare/cloudflared)** — `brew install cloudflared` on macOS, or [binary download](https://github.com/cloudflare/cloudflared/releases) for Linux/Windows. `./start.sh` auto-launches it as a quick tunnel so PAI's `video-generation-assets` endpoint can fetch local video refs from a publicly-reachable URL. Only required for video generation.
 - **[poppler](https://poppler.freedesktop.org/)** (`pdftotext`) — `brew install poppler` on macOS, `apt-get install poppler-utils` on Debian/Ubuntu. `./start.sh` auto-installs on macOS. Used at upload time to inline a PDF's text into the note body so the agent can read it without a shell-out. Missing → PDF notes fall back to filename-only.
 
 ### Bootstrap (paste into an AI coding agent)
@@ -187,9 +187,9 @@ pai-pro/
 │   ├── scripts/                   # CLI wrappers (generate_*, canvas_mutate, split_image, …)
 │   ├── pai_client.js              # shared HTTP plumbing for /api/v1/generate, /submit, /task/status
 │   ├── pai_image_client.js        # image (PAI raw `image-generation`)
-│   ├── pai_video_client.js        # video (PAI raw `jm-video-generation`)
+│   ├── pai_video_client.js        # video (PAI raw `video-generation`)
 │   ├── pai_voice_client.js        # voice (PAI raw `tts`)
-│   └── pai_assets_client.js       # asset preupload for video refs (PAI raw `jm-assets`)
+│   └── pai_assets_client.js       # asset preupload for video refs (PAI raw `video-generation-assets`)
 ├── web/                           # Vite + React 18 + TS + Tailwind + xyflow + xterm
 ├── projects/                      # gitignored — your work lives here
 ├── CLAUDE.md                      # canvas schema + agent persona + skill routing

@@ -91,10 +91,10 @@ export const MODELS = [
 
   // ───────────── video ─────────────
   {
-    id: "jm-video-generation",
+    id: "video-generation",
     provider: "pai",
     kind: "video",
-    label: "Video (jm-video-generation)",
+    label: "Video (video-generation)",
     cost_approx_usd: videoCostByResAndDuration,
     capabilities: ["text-to-video", "image-to-video", "video-to-video", "audio"],
     default_params: { duration: 15, aspect_ratio: "16:9", resolution: "720p", generate_audio: true },
@@ -115,10 +115,10 @@ export const MODELS = [
 
   // ───────────── asset preupload (internal) ─────────────
   {
-    id: "jm-assets",
+    id: "video-generation-assets",
     provider: "pai",
     kind: "asset",
-    label: "Asset preupload (jm-assets)",
+    label: "Asset preupload (video-generation-assets)",
     cost_approx_usd: 0.01,
     capabilities: ["asset-upload"],
     default_params: {},

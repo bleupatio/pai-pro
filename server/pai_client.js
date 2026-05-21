@@ -12,8 +12,8 @@
 // Used by:
 //   pai_image_client.js   — image-generation
 //   pai_voice_client.js   — tts
-//   pai_assets_client.js  — jm-assets (CreateAsset, etc.)
-//   pai_video_client.js   — jm-video-generation
+//   pai_assets_client.js  — video-generation-assets (CreateAsset, etc.)
+//   pai_video_client.js   — video-generation
 //
 // The error model carries `.klass` so _cli.js can tag failure banners.
 // Class mapping is consistent across all PAI capabilities:
@@ -244,9 +244,9 @@ async function withTransientRetry({ logTag, attempt }) {
  * the shape per model). Throws classified errors on any failure.
  *
  * @param {Object}  opts
- * @param {string}  opts.model         e.g. "image-generation" / "tts" / "jm-assets"
+ * @param {string}  opts.model         e.g. "image-generation" / "tts" / "video-generation-assets"
  * @param {object}  opts.payload       provider-native request body
- * @param {object}  [opts.queryParams] only used by jm-assets (Action)
+ * @param {object}  [opts.queryParams] only used by video-generation-assets (Action)
  * @param {number}  [opts.timeoutMs=120_000] upper bound — PAI sync timeout is 120s
  * @param {string}  [opts.logTag="pai"] for retry log lines
  */

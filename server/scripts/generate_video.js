@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // CLI wrapper for video generation via PAI raw passthrough
-// (model id: jm-video-generation). Synchronous from the caller's POV —
+// (model id: video-generation). Synchronous from the caller's POV —
 // typical wall-clock is 2-4 min, so plan accordingly.
 //
-// Refs: PAI's `jm-assets` endpoint fetches every reference URL
+// Refs: PAI's `video-generation-assets` endpoint fetches every reference URL
 // server-side for moderation and requires a publicly-fetchable URL.
 // If a ref resolves to a local viewer URL (i.e., mirrored on disk),
 // buildProviderRefs rewrites the host to the cloudflared tunnel origin
@@ -108,7 +108,7 @@ const jobId = args["existing-job-id"] || newJobId();
 const durationPlanned = Number(args.duration) || 15;
 const plannedModel = getDefault("video").id;
 
-// Asset preupload through PAI's jm-assets costs ~$0.01 per ref. Add to
+// Asset preupload through PAI's video-generation-assets costs ~$0.01 per ref. Add to
 // the staged cost so the agent's preview reflects the true freeze. Count
 // includes URL refs and source-id refs across all three kinds, deduped —
 // a ref passed both as a --reference-*-url and via --ref-source-id
@@ -129,7 +129,7 @@ if (args.stage && !(await isBypassEnabled())) {
     duration: durationPlanned,
   });
   const refCount = countUniqueRefs();
-  const assetCost = refCount * (getCost("jm-assets") ?? 0.01);
+  const assetCost = refCount * (getCost("video-generation-assets") ?? 0.01);
   const costUsd = +(Number(videoCost ?? 0) + assetCost).toFixed(3);
   await writePending({
     jobId,
@@ -175,7 +175,7 @@ try {
   const durationInt = durationPlanned;
   const projectId = args["project-id"] || (await readActiveProject());
 
-  // PAI's `jm-assets` endpoint fetches the URL server-side → must be
+  // PAI's `video-generation-assets` endpoint fetches the URL server-side → must be
   // public. Partition --ref-source-id list into image / video buckets by
   // node type. Audio refs come from --ref-audio-source-id (explicit) plus
   // --reference-audio-url. Unknown ids in --ref-source-id are dropped

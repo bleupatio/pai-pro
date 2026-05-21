@@ -5,11 +5,11 @@
 // Connection lifecycle:
 //   client connects → `subscribe { projectId }` joins the room, seeds
 //   all five state events (title, canvas-state, canvas-positions,
-//   pending-generations, ark-assets-snapshot), and re-pre-uploads any
+//   pending-generations, pai-assets-snapshot), and re-pre-uploads any
 //   image_result whose asset-cache entry has expired. Same socket can
 //   then issue pty:* messages to drive the embedded terminal.
 //
-// Socket event names `ark-assets` and `ark-assets-snapshot` are kept as
+// Socket event names `pai-assets` and `pai-assets-snapshot` are the
 // wire protocol with the browser client.
 //
 // PTY persistence model — tmux-style.
@@ -260,7 +260,7 @@ export function registerSocketHandlers({ io, projects, nodePty }) {
   paiAssetEvents.on("update", (evt) => {
     const projectId = projectIdFromCanvasUrl(evt?.url);
     if (!projectId) return;
-    io.to(projectId).emit("ark-assets", evt);
+    io.to(projectId).emit("pai-assets", evt);
   });
 
   io.on("connection", (socket) => {
@@ -281,7 +281,7 @@ export function registerSocketHandlers({ io, projects, nodePty }) {
       for (const [url, entry] of Object.entries(snapshotAssetStates())) {
         if (projectIdFromCanvasUrl(url) === projectId) projectEntries[url] = entry;
       }
-      socket.emit("ark-assets-snapshot", { projectId, state: projectEntries });
+      socket.emit("pai-assets-snapshot", { projectId, state: projectEntries });
 
       // Backfill: re-pre-upload any image_result whose canvas URL isn't in the
       // cache yet. Lights up chips on projects re-opened across viewer restarts

@@ -1,16 +1,14 @@
-// PAI raw passthrough → jm-assets (asset preupload).
+// PAI raw passthrough → video-generation-assets (asset preupload).
 //
 // PAI handles auth signing and rate limiting server-side; this file is
 // cache + event-emitter + the CreateAsset → GetAsset poll loop.
 //
-// Reference: raw-models.md § "jm-assets" plus
-// pai_bugs_for_anton_xiaodong/JM_ASSETS_FIX_VERIFIED.md (wire signatures
-// post P0 circuit-breaker fix, 2026-05-21).
+// Reference: raw-models.md § "video-generation-assets".
 //
 // Public surface:
 //
 //   paiAssetEvents        EventEmitter  ("update" → { url, status, assetId?, reason? })
-//   snapshotAssetStates()              for socket 'ark-assets-snapshot' replay
+//   snapshotAssetStates()              for socket 'pai-assets-snapshot' replay
 //   reseedFromCanvas(projectId, nodes) on project load, prime _assetCache from
 //                                      data.metadata.asset_id / asset_rejected_reason
 //   uploadReferenceUrl(url, kind)      one-shot upload with dedupe + cache
@@ -20,10 +18,10 @@
 //                                      cache-keys by relative form
 //   uploadReferences({ images, audios, videos })
 //
-// Socket event names (`ark-assets`, `ark-assets-snapshot`) are kept as
-// wire protocol — renaming would invalidate live browser state.
+// Socket event names (`pai-assets`, `pai-assets-snapshot`) are the
+// wire protocol with the browser client.
 //
-// Persistence: the per-project `.ark_cache.json` sidecar is gone; asset_id
+// Persistence: the per-project `.asset_cache.json` sidecar is gone; asset_id
 // and asset_rejected_reason now live on the node's data.metadata. The
 // services/asset_sync.js bridge dispatches mutator updateNode patches in
 // response to paiAssetEvents 'update' (active / rejected) so workflow.json
@@ -34,11 +32,11 @@
 //   CreateAsset → 200 { Result: { Id } }                        (no Status)
 //   GetAsset    → 200 { Result: { Id, Status: "Active"|"Pending"|"Failed", URL, ... } }
 //   InvalidParameter / DurationTooLong / WidthTooSmall →
-//                  502 { detail: "JM asset raw failed: Ark API [CreateAsset]: InvalidParameter.* — ..." }
-//   Group expired (~1h Ark TTL) →
-//                  502 { detail: "JM asset raw failed: Ark API [CreateAsset]: NotFound.group_id ..." }
+//                  502 { detail: "video-generation-assets [CreateAsset]: InvalidParameter.* — ..." }
+//   Group expired (~1h server-side TTL) →
+//                  502 { detail: "video-generation-assets [CreateAsset]: NotFound.group_id ..." }
 //   Circuit breaker (regression) →
-//                  502 { detail: "ark-assets/jm circuit breaker open" }
+//                  502 { detail: "video-generation-assets circuit breaker open" }
 
 import { EventEmitter } from "node:events";
 import { callGenerate, err } from "./pai_client.js";
@@ -118,7 +116,7 @@ export function snapshotAssetStates() {
  * keyed by the canonical form (`/projects/<id>/assets/<bucket>/<file>`).
  *
  * Replaces the old `seedAssetCache(readAssetCache(id))` flow that pulled
- * from `.ark_cache.json`. workflow.json is now the durable cache.
+ * from `.asset_cache.json`. workflow.json is now the durable cache.
  */
 export function reseedFromCanvas(projectId, nodes) {
   if (!projectId || !Array.isArray(nodes)) return;
@@ -137,32 +135,32 @@ export function reseedFromCanvas(projectId, nodes) {
   }
 }
 
-// --- low-level: one jm-assets action ------------------------------------
+// --- low-level: one video-generation-assets action ------------------------------------
 
 // Reclassify the generic transient/transient_exhausted that pai_client.js
-// emits for HTTP 502s, when the response body matches a known Ark wire
+// emits for HTTP 502s, when the response body matches a known provider wire
 // signature (see file header for shapes).
 function reclassifyAssetError(e) {
   const m = String(e?.message || "");
-  if (/Ark API \[\w+\]: InvalidParameter\./.test(m)) {
-    // Deterministic Ark rejection (e.g. WidthTooSmall, DurationTooLong).
+  if (/\[\w+\]: InvalidParameter\./.test(m)) {
+    // Deterministic provider rejection (e.g. WidthTooSmall, DurationTooLong).
     return err("bad_args", m, { assetRejected: true });
   }
-  if (/Ark API \[\w+\]: NotFound\.group_id/.test(m)) {
-    // Asset group expired (Ark TTLs groups after ~1h).
+  if (/\[\w+\]: NotFound\.group_id/.test(m)) {
+    // Asset group expired (provider TTLs groups after ~1h).
     return err("bad_args", m, { groupExpired: true });
   }
   if (/circuit breaker open/i.test(m)) {
     // Should not fire post-fix; treat as P0 regression.
-    return err("infra", `jm-assets circuit breaker open (regression — page Anton): ${m}`);
+    return err("infra", `video-generation-assets circuit breaker open (regression — page Anton): ${m}`);
   }
   return e;
 }
 
-async function jmAssetsCall({ action, payload, timeoutMs = 60_000 }) {
+async function paiAssetsCall({ action, payload, timeoutMs = 60_000 }) {
   try {
     return await callGenerate({
-      model: "jm-assets",
+      model: "video-generation-assets",
       payload,
       queryParams: { Action: action },
       timeoutMs,
@@ -180,7 +178,7 @@ let _groupIdPromise = null;
 async function ensureAssetGroup() {
   if (_groupIdPromise) return _groupIdPromise;
   _groupIdPromise = (async () => {
-    const data = await jmAssetsCall({
+    const data = await paiAssetsCall({
       action: "CreateAssetGroup",
       payload: {
         Name: GROUP_NAME,
@@ -205,13 +203,13 @@ async function ensureAssetGroup() {
 
 // --- GetAsset poll until terminal Status --------------------------------
 
-// CreateAsset's response has no Status field (Ark passthrough behavior,
-// not a PAI bug — see JM_ASSETS_FIX_VERIFIED.md). Status becomes Active
-// after Ark fetches and validates the URL; typical is 2 polls (Processing
-// → Active) over 5-10s wall. GetAsset requests are themselves ~2-3s each
-// at the PAI hop. The wall ceiling is generous so a slow Ark day doesn't
-// throw transient_exhausted on a ref that would have landed in 30s — the
-// happy path is unaffected (we return ASAP on Active).
+// CreateAsset's response has no Status field (provider passthrough
+// behavior, not a PAI bug). Status becomes Active after the provider
+// fetches and validates the URL; typical is 2 polls (Processing →
+// Active) over 5-10s wall. GetAsset requests are themselves
+// ~2-3s each at the PAI hop. The wall ceiling is generous so a slow
+// provider day doesn't throw transient_exhausted on a ref that would
+// have landed in 30s — the happy path is unaffected (we return ASAP on Active).
 const GET_ASSET_POLL_INTERVAL_MS = 1_500;
 const GET_ASSET_POLL_CEILING_MS = 60_000;
 const GET_ASSET_REQUEST_TIMEOUT_MS = 8_000;
@@ -233,7 +231,7 @@ async function pollGetAssetToTerminal(assetId) {
     attempts++;
     let resp;
     try {
-      resp = await jmAssetsCall({
+      resp = await paiAssetsCall({
         action: "GetAsset",
         payload: { Id: assetId },
         timeoutMs: GET_ASSET_REQUEST_TIMEOUT_MS,
@@ -265,7 +263,7 @@ async function doUpload(url, kind) {
 
   const createWithGroup = async (groupId) => {
     const name = String(url).split("/").pop().slice(0, 64) || "asset";
-    const data = await jmAssetsCall({
+    const data = await paiAssetsCall({
       action: "CreateAsset",
       payload: {
         GroupId: groupId,
@@ -290,7 +288,7 @@ async function doUpload(url, kind) {
     assetId = await createWithGroup(await ensureAssetGroup());
   } catch (e) {
     if (e?.groupExpired) {
-      // Ark TTL'd the cached group — drop and recreate, retry CreateAsset once.
+      // Provider TTL'd the cached group — drop and recreate, retry CreateAsset once.
       _groupIdPromise = null;
       assetId = await createWithGroup(await ensureAssetGroup());
     } else {
