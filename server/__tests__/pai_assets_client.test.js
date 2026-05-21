@@ -1,9 +1,6 @@
 // Unit tests for pai_assets_client. Mocks globalThis.fetch and uses
 // node:test mock timers to fast-forward the transient-retry 5s backoff
 // that lives in pai_client.js.
-//
-// Wire shapes mirror ASSETS_FIX_VERIFIED.md (2026-05-21) — the
-// post-circuit-breaker-fix surface for video-generation-assets.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -73,7 +70,7 @@ function withFakeTimers(fn) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Wire fixtures (post-fix shapes from ASSETS_FIX_VERIFIED.md)
+// Wire fixtures
 // ─────────────────────────────────────────────────────────────────────────
 
 const GROUP_OK = {

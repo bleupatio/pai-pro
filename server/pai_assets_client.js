@@ -3,9 +3,7 @@
 // PAI handles auth signing and rate limiting server-side; this file is
 // cache + event-emitter + the CreateAsset → GetAsset poll loop.
 //
-// Reference: raw-models.md § "video-generation-assets" plus
-// pai_bugs_for_anton_xiaodong/ASSETS_FIX_VERIFIED.md (wire signatures
-// post P0 circuit-breaker fix, 2026-05-21).
+// Reference: raw-models.md § "video-generation-assets".
 //
 // Public surface:
 //
@@ -205,10 +203,10 @@ async function ensureAssetGroup() {
 
 // --- GetAsset poll until terminal Status --------------------------------
 
-// CreateAsset's response has no Status field (provider passthrough behavior,
-// not a PAI bug — see ASSETS_FIX_VERIFIED.md). Status becomes Active
-// after the provider fetches and validates the URL; typical is 2 polls
-// (Processing → Active) over 5-10s wall. GetAsset requests are themselves
+// CreateAsset's response has no Status field (provider passthrough
+// behavior, not a PAI bug). Status becomes Active after the provider
+// fetches and validates the URL; typical is 2 polls (Processing →
+// Active) over 5-10s wall. GetAsset requests are themselves
 // ~2-3s each at the PAI hop. The wall ceiling is generous so a slow
 // provider day doesn't throw transient_exhausted on a ref that would
 // have landed in 30s — the happy path is unaffected (we return ASAP on Active).
