@@ -439,7 +439,50 @@
   mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
 }
 .node.pending.failed .pending-gen-prompt {
-  color: oklch(0.65 0.1 25);
+  inset: 8px 8px 54px 8px;
+  color: var(--ink-1);
+}
+.pending-failure-reason {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 28px;
+  z-index: 2;
+  min-height: 18px;
+  padding: 3px 6px;
+  border: 1px solid oklch(0.58 0.14 25 / 0.32);
+  border-radius: 4px;
+  background: oklch(0.26 0.08 25 / 0.26);
+  color: oklch(0.72 0.13 25);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.node.pending.failed .node-foot {
+  justify-content: stretch;
+}
+.pending-failure-actions {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+.pending-dismiss-failure {
+  flex: 0 0 auto;
+}
+.pending-send-agent {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pending-send-agent:disabled {
+  cursor: default;
 }
 .pending-gen-hint {
   position: absolute;
@@ -471,10 +514,6 @@
   border-color: rgba(255, 255, 255, 0.22);
   background: rgba(20, 20, 26, 0.88);
 }
-.node.pending.failed .pending-gen-hint {
-  display: none;
-}
-
 /* Draft chrome (PR #2 of the draft-gate). Textarea replaces the read-
    only prompt; head carries model+resolution; foot pairs Cancel (left)
    with Generate · $X.XX (right). */
@@ -744,4 +783,3 @@
    the body scrolls; offset clears the head bar that owns the top 36px. */
 .node.note > .media-expand-btn { top: 36px; }
 .node.note > .media-download-btn { top: 36px; }
-

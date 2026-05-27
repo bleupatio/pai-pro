@@ -18,7 +18,7 @@
 //   GET    /                                              health
 //   GET    /projects                                      list
 //   POST   /projects                                      create
-//   GET    /projects/:id                                  bundle: { row, canvas_state, canvas_positions, pending_generations }
+//   GET    /projects/:id                                  bundle: { row, canvas_state, canvas_positions, pending_generations, generation_results }
 //   GET    /projects/:id/reel.mp4                          stitch every shot-id'd clip and stream as a download
 //   PATCH  /projects/:id                                   update meta (title)
 //   DELETE /projects/:id                                   soft delete (move to projects/.archive/)
@@ -32,7 +32,8 @@
 //   subscribe { projectId }   — join the project's room and seed all state
 //   canvas-state              — workflow.json on every disk change
 //   canvas-positions          — sidecar on every disk change
-//   title                     — { projectId, title } on meta change
+//   generation-results        — completed .results sidecars
+//   title                     — project meta slice on meta change
 //
 //   pty:spawn { projectId?, cols?, rows? }  — start a new agent pty
 //   pty:input data            — keystrokes from browser → pty stdin
@@ -126,7 +127,7 @@ registerProjectsRoutes({ app, io, projects, mutatorHooks });
 registerReelRoutes({ app, projects });
 registerCanvasRoutes({ app, io, projects, mutatorHooks });
 registerUploadRoutes({ app, io, projects, mutatorHooks });
-registerPendingRoutes({ app, projects });
+registerPendingRoutes({ app, projects, broadcasters });
 
 registerSocketHandlers({ io, projects, nodePty });
 // Persists video-generation-assets terminal states (active / rejected) onto the owning

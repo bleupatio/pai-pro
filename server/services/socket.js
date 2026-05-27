@@ -4,9 +4,9 @@
 //
 // Connection lifecycle:
 //   client connects → `subscribe { projectId }` joins the room, seeds
-//   all five state events (title, canvas-state, canvas-positions,
-//   pending-generations, pai-assets-snapshot), and re-pre-uploads any
-//   image_result whose asset-cache entry has expired. Same socket can
+//   state events (title, canvas-state, canvas-positions,
+//   pending-generations, generation-results, pai-assets-snapshot), and
+//   re-pre-uploads any image_result whose asset-cache entry has expired. Same socket can
 //   then issue pty:* messages to drive the embedded terminal.
 //
 // Socket event names `pai-assets` and `pai-assets-snapshot` are the
@@ -38,6 +38,10 @@ import {
   projectDir,
   projectIdFromCanvasUrl,
 } from "../lib/paths.js";
+import {
+  compareResultSummaries,
+  GENERATION_RESULTS_BUNDLE_LIMIT,
+} from "../lib/readers.js";
 
 const ptys = new Map();
 const socketAttach = new Map();           // socket.id -> projectId
@@ -57,17 +61,6 @@ export function killPty(projectId) {
   try { entry.pty.kill(); } catch {}
   ptys.delete(projectId);
   for (const sid of entry.subscribers) socketAttach.delete(sid);
-}
-
-// Inject text into a project's PTY as if the user had typed it. No trailing
-// \r — bytes land in claude's input box, user decides whether to submit.
-// Auto-submit would need the two-connection orchestration documented in
-// PR #23 (brittle to TUI changes); text-only uses the same single path the
-// browser uses for every keystroke. Returns false if no PTY is attached.
-export function writeToProjectPty(projectId, text) {
-  const entry = ptys.get(projectId);
-  if (!entry) return false;
-  try { entry.pty.write(text); return true; } catch { return false; }
 }
 
 // Shut every pty down cleanly on viewer exit so dev's Ctrl+C doesn't
@@ -257,6 +250,12 @@ export function registerSocketHandlers({ io, projects, nodePty }) {
       socket.emit("pending-generations", {
         projectId,
         state: Array.from(p.pendingGenerations?.values() ?? []),
+      });
+      socket.emit("generation-results", {
+        projectId,
+        state: Array.from(p.generationResults?.values() ?? [])
+          .sort(compareResultSummaries)
+          .slice(0, GENERATION_RESULTS_BUNDLE_LIMIT),
       });
       // Replay cached asset statuses so chips render on load, not on the next flip.
       const projectEntries = {};

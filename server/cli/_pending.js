@@ -6,8 +6,8 @@
 // and unlinked on settle (success OR failure). The viewer chokidar-watches
 // `projects/<id>/.pending/` and re-broadcasts to every browser tab.
 //
-// Lifetime is exactly the wall-clock of the CLI. The viewer also runs a
-// 15-minute safety prune for crashed CLIs that never reached the finally.
+// Lifetime is exactly the wall-clock of the CLI. The viewer hides stale
+// running sidecars after 15 minutes when a crashed CLI never reaches finally.
 //
 // The CLI's cwd is `projects/<active>/` (set by the agent's pty), so we
 // resolve the sidecar relative to that. If the CLI is run from elsewhere,
@@ -17,8 +17,16 @@ import crypto from "node:crypto";
 import path from "node:path";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
+import {
+  normalizeResultForRead,
+  normalizeResultForWrite,
+} from "../lib/generation_result_normalize.js";
 
 const PENDING_DIR_NAME = ".pending";
+const RESULTS_DIR_NAME = ".results";
+const DEFAULT_WAIT_TIMEOUT_MS = 10 * 60 * 1000;
+const VIDEO_WAIT_TIMEOUT_MS = 35 * 60 * 1000;
+const DEFAULT_WAIT_INTERVAL_MS = 1000;
 
 function pendingDir() {
   return path.join(process.cwd(), PENDING_DIR_NAME);
@@ -26,6 +34,10 @@ function pendingDir() {
 
 function pendingPath(jobId) {
   return path.join(pendingDir(), `${jobId}.json`);
+}
+
+function resultPath(jobId, cwd = process.cwd()) {
+  return path.join(cwd, RESULTS_DIR_NAME, `${jobId}.json`);
 }
 
 export function newJobId() {
@@ -44,6 +56,187 @@ export async function isBypassEnabled(cwd = process.cwd()) {
     return meta.dangerously_skip_draft_gate === true;
   } catch {
     return false;
+  }
+}
+
+export async function isServerOwnedGenerationEnabled(cwd = process.cwd()) {
+  if (process.env.PAI_SERVER_OWNED_GENERATION === "0") return false;
+  try {
+    const meta = JSON.parse(
+      await fsp.readFile(path.join(cwd, "meta.json"), "utf8"),
+    );
+    return meta.use_server_owned_generation === true;
+  } catch {
+    return false;
+  }
+}
+
+export function defaultWaitTimeoutMsForKind(kind) {
+  return kind === "video" ? VIDEO_WAIT_TIMEOUT_MS : DEFAULT_WAIT_TIMEOUT_MS;
+}
+
+function parseWaitTimeout(timeoutMs, kind) {
+  if (typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs >= 0) {
+    return timeoutMs;
+  }
+  const fromEnv = Number(process.env.PAI_WAIT_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv >= 0 ? fromEnv : defaultWaitTimeoutMsForKind(kind);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function waitForResult(jobId, {
+  cwd = process.cwd(),
+  kind,
+  timeoutMs,
+  intervalMs = DEFAULT_WAIT_INTERVAL_MS,
+} = {}) {
+  const waitMs = parseWaitTimeout(timeoutMs, kind);
+  const pollMs = Math.max(10, Number(intervalMs) || DEFAULT_WAIT_INTERVAL_MS);
+  const deadline = Date.now() + waitMs;
+  while (true) {
+    try {
+      const raw = await fsp.readFile(resultPath(jobId, cwd), "utf8");
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && typeof parsed.ok === "boolean") {
+        return normalizeResultForRead(jobId, parsed);
+      }
+      return {
+        ok: false,
+        job_id: jobId,
+        klass: "infra",
+        message: `result sidecar ${jobId} has invalid shape`,
+      };
+    } catch (e) {
+      if (e.code !== "ENOENT" && e.code !== "ENOTDIR") {
+        return {
+          ok: false,
+          job_id: jobId,
+          klass: "infra",
+          message: `result sidecar ${jobId} is unreadable: ${e.message}`,
+        };
+      }
+    }
+    const now = Date.now();
+    if (now >= deadline) {
+      return {
+        ok: false,
+        job_id: jobId,
+        klass: "timeout",
+        message: `timed out waiting for generation result ${jobId}`,
+      };
+    }
+    await sleep(Math.min(pollMs, deadline - now));
+  }
+}
+
+function viewerBaseUrl() {
+  const host = process.env.VIEWER_HOST || "localhost";
+  const port = process.env.VIEWER_PORT || "7488";
+  return `http://${host}:${port}`;
+}
+
+export async function fireAndWait({ projectId, jobId, kind, timeoutMs } = {}) {
+  if (!projectId || !jobId) {
+    return {
+      ok: false,
+      job_id: jobId || null,
+      klass: "bad_args",
+      message: "fireAndWait requires projectId and jobId",
+    };
+  }
+  const url = new URL(
+    `/projects/${encodeURIComponent(projectId)}/pending/${encodeURIComponent(jobId)}/generate`,
+    viewerBaseUrl(),
+  );
+  let response;
+  try {
+    response = await fetch(url, { method: "POST" });
+  } catch (e) {
+    return {
+      ok: false,
+      job_id: jobId,
+      klass: "infra",
+      message: `viewer fire request failed: ${e.message}`,
+    };
+  }
+  if (!response.ok) {
+    let message = `viewer fire request returned HTTP ${response.status}`;
+    try {
+      const body = await response.json();
+      if (body?.error) message = String(body.error);
+    } catch {
+      try {
+        const text = await response.text();
+        if (text.trim()) message = text.trim().slice(0, 400);
+      } catch {
+        /* keep status message */
+      }
+    }
+    return {
+      ok: false,
+      job_id: jobId,
+      klass: response.status === 404 ? "bad_args" : "infra",
+      message,
+    };
+  }
+  return waitForResult(jobId, { kind, timeoutMs });
+}
+
+async function pendingContextForResult(jobId, cwd) {
+  try {
+    const parsed = JSON.parse(
+      await fsp.readFile(path.join(cwd, PENDING_DIR_NAME, `${jobId}.json`), "utf8"),
+    );
+    if (!parsed || typeof parsed !== "object") return {};
+    const out = {};
+    for (const key of [
+      "prompt",
+      "aspect_ratio",
+      "model",
+      "image_size",
+      "resolution",
+      "duration",
+      "cost_usd",
+      "text",
+      "position",
+      "reference_source_ids",
+      "source_node_id",
+    ]) {
+      if (parsed[key] !== undefined) out[key] = parsed[key];
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+// Write the durable terminal record for a CLI-owned generation to
+// `<cwd>/.results/<jobId>.json`. The viewer's chokidar watcher picks it up
+// and broadcasts `generation-results`; `list_generation_results.js` and
+// `wait_for_generation.js` read it back. Write-once and best-effort: the
+// link fails EEXIST if a result already exists (e.g. boot recovery beat us
+// to it), so we never clobber and never throw into the CLI's finally.
+export async function writeResultSidecar(jobId, result, { cwd = process.cwd() } = {}) {
+  if (!jobId || !result || typeof result !== "object") return false;
+  const dir = path.join(cwd, RESULTS_DIR_NAME);
+  const target = path.join(dir, `${jobId}.json`);
+  const payload = normalizeResultForWrite(jobId, {
+    ...(await pendingContextForResult(jobId, cwd)),
+    ...result,
+  });
+  const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await fsp.mkdir(dir, { recursive: true });
+    await fsp.writeFile(tmp, JSON.stringify(payload) + "\n");
+    await fsp.link(tmp, target);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    try { await fsp.unlink(tmp); } catch {}
   }
 }
 

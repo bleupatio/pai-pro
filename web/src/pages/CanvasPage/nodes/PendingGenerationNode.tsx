@@ -1,9 +1,9 @@
 /**
  * PendingGenerationNode — chrome for optimistic placeholders during
- * in-flight generation. Driven by the `pending-generations` Socket.IO
- * channel, not workflow.json — these nodes never persist, they're
- * synthesized client-side from `.pending/<jobId>.json` sidecars and
- * vanish when the real image_result / video_result / audio_result lands.
+ * in-flight generation. Driven by viewer sidecar Socket.IO channels,
+ * not workflow.json. Running/draft pads come from `.pending/<jobId>.json`;
+ * failed pads are synthesized from durable
+ * `.results/<jobId>.json` until the user sends/dismisses them.
  *
  * Audio drafts/running share the same chrome as image — taller body
  * with the spoken text (the deliverable) editable on draft. The voice
@@ -12,7 +12,9 @@
 import { useState } from 'react'
 import type { NodeProps } from '@xyflow/react'
 import { Handle, Position } from '@xyflow/react'
+import { useChatComposer } from '@/contexts/ChatComposerContext'
 import { useFireConfirm } from '../FireConfirmProvider'
+import { buildGenerationFailureAgentPrompt } from '../generationFailurePrompt'
 import { parseAspectRatio, sizeForAspect, type NodeState } from '../nodeData'
 import { useNodeActions } from '../NodeActionsContext'
 import { NodeHead } from './_shared'
@@ -31,6 +33,9 @@ interface PendingGenerationData {
   cost_usd?: number
   /** Audio drafts: the spoken line for voice generations. */
   text?: string
+  klass?: string
+  message?: string
+  sent?: unknown
 }
 
 // Cards narrower than this get the portrait/narrow-only layout fixes
@@ -47,6 +52,7 @@ export function PendingGenerationNode({ id, data, selected }: NodeProps): JSX.El
   const prompt = d.prompt ?? ''
   const text = d.text ?? ''
   const isAudio = kind === 'audio'
+  const failureMessage = d.message ?? d.klass ?? 'Generation failed'
   // For voice, the body content is the spoken text (the deliverable);
   // the voice design `prompt` is metadata shown only in the overlay.
   // For image/video, it's the prompt verbatim.
@@ -83,15 +89,24 @@ export function PendingGenerationNode({ id, data, selected }: NodeProps): JSX.El
     .filter((v): v is string => typeof v === 'string' && v !== '')
     .join(' · ')
 
-  const { onExpandMedia, onPatchDraft, onFireDraft, onDiscardDraft } = useNodeActions()
+  const {
+    onExpandMedia,
+    onPatchDraft,
+    onFireDraft,
+    onDiscardDraft,
+    onDismissFailedGeneration,
+  } = useNodeActions()
+  const composer = useChatComposer()
   const canExpand = onExpandMedia !== undefined
   const isDraft = stage === 'draft'
+  const isFailed = stage === 'failed'
 
   // Textarea is uncontrolled (defaultValue + onBlur PATCH); a controlled
   // input would re-mount on every keystroke as the socket fans the new
   // sidecar back. `firing` stays true between click and the running flip.
   const [firing, setFiring] = useState(false)
   const [draftError, setDraftError] = useState<string | null>(null)
+  const [failureSent, setFailureSent] = useState(false)
   // First-fire gate: routes the very first Generate click in this
   // browser through a centered confirmation modal owned by
   // FireConfirmProvider. Subsequent clicks run `onConfirm` immediately.
@@ -130,6 +145,23 @@ export function PendingGenerationNode({ id, data, selected }: NodeProps): JSX.El
       setDraftError(err instanceof Error ? err.message : String(err))
     })
   }
+  const handleSendFailure = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    if (composer === null || failureSent) return
+    composer.insertAtCursor(buildGenerationFailureAgentPrompt({
+      jobId: id,
+      kind,
+      klass: d.klass,
+      message: d.message,
+      sent: d.sent,
+    }) + '\r')
+    setFailureSent(true)
+    onDismissFailedGeneration?.(id)
+  }
+  const handleDismissFailure = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    onDismissFailedGeneration?.(id)
+  }
   const handleExpand = (e: React.MouseEvent): void => {
     e.stopPropagation()
     if (!canExpand) return
@@ -166,6 +198,14 @@ export function PendingGenerationNode({ id, data, selected }: NodeProps): JSX.El
       metadata,
       duration: kind === 'video' ? d.duration : undefined,
       stage,
+      failure: isFailed
+        ? {
+            klass: d.klass,
+            message: d.message,
+            sent: d.sent,
+            jobId: id,
+          }
+        : undefined,
     })
   }
   const target = Position.Left, source = Position.Right
@@ -231,6 +271,11 @@ export function PendingGenerationNode({ id, data, selected }: NodeProps): JSX.El
             <span>more details</span>
           </button>
         ) : null}
+        {isFailed ? (
+          <div className="pending-failure-reason" title={failureMessage}>
+            {failureMessage}
+          </div>
+        ) : null}
         {draftError ? (
           <div className="draft-error nodrag" title={draftError}>{draftError}</div>
         ) : null}
@@ -258,6 +303,27 @@ export function PendingGenerationNode({ id, data, selected }: NodeProps): JSX.El
                 : `Generate${d.cost_usd !== undefined ? ` · $${d.cost_usd.toFixed(2)}` : ''}`}
             </button>
           </>
+        ) : isFailed ? (
+          <div className="pending-failure-actions">
+            <button
+              type="button"
+              className="btn-cancel pending-dismiss-failure"
+              onClick={handleDismissFailure}
+              disabled={onDismissFailedGeneration === undefined}
+              title="Dismiss this failed generation"
+            >
+              Dismiss
+            </button>
+            <button
+              type="button"
+              className="btn-generate-primary pending-send-agent"
+              onClick={handleSendFailure}
+              disabled={composer === null || failureSent}
+              title={composer === null ? 'Terminal not ready' : 'Send this failure to the agent'}
+            >
+              {failureSent ? 'Sent' : 'Send failure to agent'}
+            </button>
+          </div>
         ) : (
           <span>{footMeta}</span>
         )}

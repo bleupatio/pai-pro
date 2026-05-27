@@ -11,10 +11,9 @@
  * bottom lets the user fire edit instructions directly to the
  * agent's pty session, pre-scoped to the current node.
  *
- * Three media kinds:
- *   - 'image' / 'video' — the real asset
- *   - 'image-generation' / 'video-generation' — pending placeholder
- *     shown while the agent's compose tool is in flight (PendingGenerationNode invokes this).
+ * Real media (`image` / `video` / `audio`) render the asset; generation
+ * media (`*-generation`) render draft/running/failed pending pads opened
+ * from PendingGenerationNode.
  *
  * Mention chips inside the prompt (`@Image1`, `@Video1`, `@Audio1`)
  * render as inline thumbnails when their indexed reference is present;
@@ -24,10 +23,12 @@
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useChatComposer } from '@/contexts/ChatComposerContext'
+import { useCanvasFocus } from '@/contexts/CanvasFocusContext'
 import { MediaExpandChat } from './MediaExpandChat'
+import { buildGenerationFailureAgentPrompt } from './generationFailurePrompt'
 import { downloadHref } from './nodeData'
 import { useNodeActions } from './NodeActionsContext'
-import { useCanvasFocus } from '@/contexts/CanvasFocusContext'
 import { mutateCanvas } from '@/lib/canvas-stub'
 import { useFireConfirm } from './FireConfirmProvider'
 import { useCost } from '@/lib/useModels'
@@ -79,6 +80,13 @@ export interface MediaPayload {
    * an editable textarea so the user can revise without leaving the
    * overlay. */
   stage?: 'draft' | 'running' | 'failed'
+  /** Pending failed result context. Durable details live in `.results/<jobId>.json`. */
+  failure?: {
+    klass?: string
+    message?: string
+    sent?: unknown
+    jobId?: string
+  }
 }
 
 export function MediaExpandOverlay({
@@ -96,7 +104,8 @@ export function MediaExpandOverlay({
   const [noteEditLabel, setNoteEditLabel] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
   const [noteSaveError, setNoteSaveError] = useState<string | null>(null)
-  const { onSaveNote, onPatchDraft, onFireDraft, onDiscardDraft } = useNodeActions()
+  const { onSaveNote, onPatchDraft, onFireDraft, onDiscardDraft, onDismissFailedGeneration } = useNodeActions()
+  const composer = useChatComposer()
   const [fireError, setFireError] = useState<string | null>(null)
   // First-fire gate: routes the overlay's Generate click through the
   // centered confirmation modal owned by FireConfirmProvider. Same
@@ -149,22 +158,24 @@ export function MediaExpandOverlay({
 
   if (media === null) return null
 
-  const { kind, url, label, meta, prompt, references, id, nodeType, metadata, duration, body, subtype, archived, text, stage } = media
+  const { kind, url, label, meta, prompt, references, id, nodeType, metadata, duration, body, subtype, archived, text, stage, failure } = media
   const refs: MediaRef[] = Array.isArray(references) ? references : []
   const hasPrompt = typeof prompt === 'string' && prompt.trim() !== ''
   const hasRefs = refs.length > 0
   const isGenerating = kind === 'image-generation' || kind === 'video-generation' || kind === 'audio-generation'
   const isDraft = isGenerating && stage === 'draft'
+  const isFailed = isGenerating && stage === 'failed'
   const isNote = kind === 'note'
   const isAudio = kind === 'audio'
   const isArchived = archived === true
   const hasMetadata = !isNote && metadata !== undefined
-  const hasTopContent = !isNote && (hasPrompt || hasRefs || hasMetadata)
+  const hasTopContent = !isNote && (hasPrompt || hasRefs || hasMetadata || failure !== undefined)
   // Archived nodes can't be referenced by agent tools (the
   // `buildProviderRefs` / `postNodeAddBatch` chokepoints reject them),
   // so the chat composer would just lead to a `bad_args` failure. Hide
   // it and surface a Restore CTA in the same slot instead.
   const canChat = !isGenerating && !isArchived && typeof id === 'string' && id !== ''
+  const failureJobId = failure?.jobId ?? (isFailed && typeof id === 'string' ? id : undefined)
 
   const onFireFromOverlay = (): void => {
     if (onFireDraft === undefined || typeof id !== 'string' || id === '') return
@@ -189,6 +200,23 @@ export function MediaExpandOverlay({
     }).catch((err) => {
       setFireError(err instanceof Error ? err.message : String(err))
     })
+  }
+  const onSendFailureToAgent = (): void => {
+    if (!isFailed || composer === null || typeof failureJobId !== 'string' || failureJobId === '') return
+    composer.insertAtCursor(buildGenerationFailureAgentPrompt({
+      jobId: failureJobId,
+      kind: kind === 'video-generation' ? 'video' : kind === 'audio-generation' ? 'audio' : 'image',
+      klass: failure?.klass,
+      message: failure?.message,
+      sent: failure?.sent,
+    }) + '\r')
+    onDismissFailedGeneration?.(failureJobId)
+    onClose()
+  }
+  const onDismissFailure = (): void => {
+    if (!isFailed || typeof failureJobId !== 'string' || failureJobId === '') return
+    onDismissFailedGeneration?.(failureJobId)
+    onClose()
   }
 
   const onRestore = async (): Promise<void> => {
@@ -280,7 +308,8 @@ export function MediaExpandOverlay({
         className={
           'media-expand-content' +
           (topExpanded ? ' media-expand-content-top-open' : '') +
-          (isDraft ? ' media-expand-content-draft' : '')
+          (isDraft ? ' media-expand-content-draft' : '') +
+          (isFailed ? ' media-expand-content-failed' : '')
         }
         onClick={(e) => {
           e.stopPropagation()
@@ -321,7 +350,8 @@ export function MediaExpandOverlay({
             metadata={hasMetadata ? metadata : undefined}
             duration={duration}
             cost={cost}
-            forceExpanded={isDraft}
+            failure={failure}
+            forceExpanded={isDraft || isFailed}
             onSavePrompt={
               isDraft && onPatchDraft !== undefined && typeof id === 'string' && id !== ''
                 ? (newPrompt) => { onPatchDraft(id, { prompt: newPrompt }).catch((e) => {
@@ -341,7 +371,7 @@ export function MediaExpandOverlay({
           <div className="me-top-spacer" aria-hidden />
         )}
 
-        {isDraft ? null : (
+        {isDraft || isFailed ? null : (
         <div className="media-expand-main">
           {/* Notes carry Download in the panel action bar instead — see NoteExpanded. */}
           {!isNote && !isGenerating && typeof url === 'string' && url !== '' ? (
@@ -447,6 +477,27 @@ export function MediaExpandOverlay({
               </button>
             </div>
           </div>
+        ) : isFailed ? (
+          <div className="media-expand-failure-bar">
+            <button
+              type="button"
+              className="media-expand-failure-dismiss"
+              onClick={onDismissFailure}
+              disabled={typeof failureJobId !== 'string' || failureJobId === ''}
+              title="Dismiss this failed generation"
+            >
+              Dismiss
+            </button>
+            <button
+              type="button"
+              className="media-expand-failure-cta"
+              onClick={onSendFailureToAgent}
+              disabled={composer === null || typeof failureJobId !== 'string' || failureJobId === ''}
+              title={composer === null ? 'Terminal not ready' : 'Send this failure to the agent'}
+            >
+              Send failure to agent
+            </button>
+          </div>
         ) : canChat ? (
           <MediaExpandChat nodeId={id!} projectId={projectId} />
         ) : (
@@ -472,6 +523,7 @@ interface TopStripProps {
   metadata?: MediaMetadata
   duration?: number | string
   cost?: number | null
+  failure?: MediaPayload['failure']
   /** Draft-only: when present, the PROMPT section in the expanded panel
    * renders an editable textarea instead of the rich PromptText. onBlur
    * fires PATCH /pending/:jobId via the parent. */
@@ -489,7 +541,7 @@ function formatCost(c: number | null | undefined): string | null {
   return `~$${c.toFixed(2)}`
 }
 
-function TopStrip({ prompt, text, refs, refsByKind, expanded, onToggle, nodeType, metadata, duration, cost, onSavePrompt, onSaveText, forceExpanded = false }: TopStripProps): JSX.Element {
+function TopStrip({ prompt, text, refs, refsByKind, expanded, onToggle, nodeType, metadata, duration, cost, failure, onSavePrompt, onSaveText, forceExpanded = false }: TopStripProps): JSX.Element {
   const modelChip =
     nodeType === 'video_result' ? 'video'
     : nodeType === 'audio_result' ? 'voice'
@@ -599,6 +651,26 @@ function TopStrip({ prompt, text, refs, refsByKind, expanded, onToggle, nodeType
                 <span className="me-section-count">{refs.length}</span>
               </header>
               <RefGrid refsByKind={refsByKind} />
+            </section>
+          ) : null}
+          {failure !== undefined ? (
+            <section className="me-section me-failure-section">
+              <header className="me-section-title">FAILURE</header>
+              <div className="me-failure-box">
+                {failure.klass ? (
+                  <div className="me-failure-class">{failure.klass}</div>
+                ) : null}
+                {failure.message ? (
+                  <div className="me-failure-message">{failure.message}</div>
+                ) : (
+                  <div className="me-failure-message">Generation failed.</div>
+                )}
+                {failure.jobId ? (
+                  <code className="me-failure-command">
+                    node "$PAI_REPO_ROOT/server/cli/list_generation_results.js" --job-id {failure.jobId}
+                  </code>
+                ) : null}
+              </div>
             </section>
           ) : null}
           {metadata !== undefined ? (

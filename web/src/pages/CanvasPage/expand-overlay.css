@@ -111,11 +111,11 @@
   border-color: var(--accent);
 }
 
-/* ── Draft overlay ──────────────────────────────────────────────────
-   Drafts skip the media-expand-main row entirely (no GENERATING
-   placeholder); the TopStrip's panel becomes the main content, and
-   the bottom row carries Cancel + Generate. */
-.media-expand-content.media-expand-content-draft {
+/* ── Draft / failed overlays ────────────────────────────────────────
+   These skip the media-expand-main row entirely; the TopStrip's panel
+   becomes the main content and the bottom row carries the action bar. */
+.media-expand-content.media-expand-content-draft,
+.media-expand-content.media-expand-content-failed {
   grid-template-rows: 1fr auto;
 }
 .me-top.me-top-static {
@@ -140,16 +140,16 @@
    section/textarea classes) flex-fills the leftover space below
    REFERENCES + DETAILS. Mirrors `.note-expand-textarea` inside
    `.note-expand-body` further down in this file. */
-.me-top.me-top-static .me-prompt-section {
+.media-expand-content-draft .me-top.me-top-static .me-prompt-section {
   flex: 1 1 auto;
   min-height: 0;
 }
-.me-top.me-top-static .me-prompt-section .me-prompt {
+.media-expand-content-draft .me-top.me-top-static .me-prompt-section .me-prompt {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
 }
-.me-top.me-top-static .me-prompt-section .me-prompt-textarea {
+.media-expand-content-draft .me-top.me-top-static .me-prompt-section .me-prompt-textarea {
   flex: 1 1 auto;
   min-height: 0;
   resize: none;
@@ -213,6 +213,69 @@
 }
 .media-expand-generate-cta:hover { background: oklch(0.68 0.17 145); }
 .media-expand-generate-cta:disabled { opacity: 0.55; cursor: progress; }
+
+.media-expand-failure-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 14px 20px;
+  background: oklch(0.11 0.018 25 / 0.72);
+  border-top: 1px solid oklch(0.65 0.18 25 / 0.35);
+  border-radius: 0 0 12px 12px;
+}
+.media-expand-failure-cta {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 18px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: oklch(0.55 0.14 145);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+.media-expand-failure-cta:hover {
+  background: oklch(0.62 0.16 145);
+}
+.media-expand-failure-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.media-expand-failure-dismiss {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid oklch(0.65 0.18 25 / 0.35);
+  background: transparent;
+  color: var(--ink-1);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+.media-expand-failure-dismiss:hover {
+  background: oklch(0.20 0.03 25 / 0.72);
+}
+.media-expand-failure-dismiss:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* Audio-only stage: center an HTML5 audio element and (for TTS rows)
    the spoken text above it. */
@@ -487,6 +550,46 @@
   outline: none;
 }
 .me-prompt-textarea:focus { border-color: var(--accent); }
+
+.me-failure-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid oklch(0.58 0.14 25 / 0.34);
+  border-radius: 6px;
+  background: oklch(0.23 0.07 25 / 0.24);
+}
+.me-failure-class {
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: oklch(0.58 0.14 25 / 0.18);
+  color: oklch(0.78 0.14 25);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+.me-failure-message {
+  color: oklch(0.82 0.08 25);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.me-failure-command {
+  display: block;
+  padding: 7px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--ink-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* Inline reference chips inside the expanded prompt. */
 .me-ref-chip {

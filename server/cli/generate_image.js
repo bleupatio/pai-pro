@@ -30,7 +30,16 @@ import {
   readActiveProject,
 } from "../local_mirror.js";
 import { postNodeAddBatch } from "./_mutate_helper.js";
-import { isBypassEnabled, newJobId, writePending, removePending, removePendingSync } from "./_pending.js";
+import {
+  fireAndWait,
+  isBypassEnabled,
+  isServerOwnedGenerationEnabled,
+  newJobId,
+  writePending,
+  writeResultSidecar,
+  removePending,
+  removePendingSync,
+} from "./_pending.js";
 import { getDefault, getCost } from "../model_registry.js";
 import { kickPreupload } from "./_preupload_hook.js";
 import { IMAGE_LIMITS } from "./_limits.js";
@@ -68,7 +77,7 @@ function buildSent() {
 }
 
 function fail(klass, message, extra = {}) {
-  emitFailure(klass, message, { limits: IMAGE_LIMITS, sent: buildSent(), ...extra });
+  return emitFailure(klass, message, { limits: IMAGE_LIMITS, sent: buildSent(), ...extra });
 }
 
 if (!args.prompt) {
@@ -81,31 +90,49 @@ if (refSources.length > IMAGE_LIMITS.max_image_refs) {
   process.exit(2);
 }
 const jobId = args["existing-job-id"] || newJobId();
+const routeOwnedPending = !!args["existing-job-id"];
 const plannedModel = getDefault("image").id;
 
-if (args.stage && !(await isBypassEnabled())) {
-  const costUsd = getCost(plannedModel, { image_size: args["image-size"] });
-  await writePending({
-    jobId,
-    kind: "image",
-    stage: "draft",
-    prompt: args.prompt,
-    aspectRatio: args["aspect-ratio"],
-    sourceNodeId: args["source-node-id"] || null,
-    referenceSourceIds: refSources,
-    model: plannedModel,
-    imageSize: args["image-size"],
-    costUsd,
-    script: "generate_image.js",
-    argv: rawArgv.filter((a) => a !== "--stage"),
-  });
-  emitSuccess({ stage: "draft", job_id: jobId, model: plannedModel, cost_usd: costUsd });
-  process.exit(0);
+if (args.stage) {
+  const bypassEnabled = await isBypassEnabled();
+  const serverOwned = bypassEnabled && await isServerOwnedGenerationEnabled();
+  if (!bypassEnabled || serverOwned) {
+    const costUsd = getCost(plannedModel, { image_size: args["image-size"] });
+    await writePending({
+      jobId,
+      kind: "image",
+      stage: "draft",
+      prompt: args.prompt,
+      aspectRatio: args["aspect-ratio"],
+      sourceNodeId: args["source-node-id"] || null,
+      referenceSourceIds: refSources,
+      model: plannedModel,
+      imageSize: args["image-size"],
+      costUsd,
+      script: "generate_image.js",
+      argv: rawArgv.filter((a) => a !== "--stage"),
+    });
+    if (!bypassEnabled) {
+      emitSuccess({ stage: "draft", job_id: jobId, model: plannedModel, cost_usd: costUsd });
+      process.exit(0);
+    }
+    try {
+      const projectId = args["project-id"] || (await readActiveProject());
+      const result = await fireAndWait({ projectId, jobId, kind: "image" });
+      process.stdout.write(JSON.stringify(result) + "\n");
+      process.exit(result.ok ? 0 : 1);
+    } catch (e) {
+      fail(classify(e), e.message);
+      process.exit(1);
+    }
+  }
 }
 
-const cleanup = () => removePendingSync(jobId);
-process.on("SIGINT",  () => { cleanup(); process.exit(130); });
-process.on("SIGTERM", () => { cleanup(); process.exit(143); });
+if (!routeOwnedPending) {
+  const cleanup = () => removePendingSync(jobId);
+  process.on("SIGINT",  () => { cleanup(); process.exit(130); });
+  process.on("SIGTERM", () => { cleanup(); process.exit(143); });
+}
 
 await writePending({
   jobId,
@@ -119,6 +146,7 @@ await writePending({
 });
 
 let exitCode = 0;
+let emitted = null;
 try {
   const projectId = args["project-id"] || (await readActiveProject());
 
@@ -156,6 +184,7 @@ try {
       aspect_ratio: args["aspect-ratio"],
       image_size: args["image-size"],
       generated_at: isoNow(),
+      pending_job_id: jobId,
     },
     ...(args.subtype ? { subtype: args.subtype } : {}),
     ...(args.name ? { name: args.name } : {}),
@@ -175,6 +204,11 @@ try {
   const assignedNodeId = mutResult?.canvas_mutation?.node_id ?? null;
   if (!assignedNodeId) {
     await fs.unlink(tmpAbsPath).catch(() => {});
+  }
+  if (mutResult?.canvas_mutation_error) {
+    const err = new Error(mutResult.canvas_mutation_error.message || "canvas mutation failed");
+    err.klass = mutResult.canvas_mutation_error.klass || "infra";
+    throw err;
   }
   const localPath = assignedNodeId
     ? `assets/images/${assignedNodeId}${ext}`
@@ -199,11 +233,16 @@ try {
   };
   if (mutResult) Object.assign(payload, mutResult);
 
-  emitSuccess(payload);
+  emitted = emitSuccess(payload);
 } catch (e) {
-  fail(classify(e), e.message, e.retryAfterSec ? { retryAfterSec: e.retryAfterSec } : {});
+  emitted = fail(classify(e), e.message, e.retryAfterSec ? { retryAfterSec: e.retryAfterSec } : {});
   exitCode = 1;
 } finally {
-  await removePending(jobId);
+  // Route-owned fires get their durable result written by the fire route
+  // from captured stdout; a direct/bypass CLI run persists its own.
+  if (!routeOwnedPending) {
+    if (emitted) await writeResultSidecar(jobId, { ...emitted, kind: "image" });
+    await removePending(jobId);
+  }
 }
 process.exit(exitCode);

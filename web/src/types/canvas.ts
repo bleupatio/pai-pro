@@ -15,6 +15,8 @@ export interface NodeMetadataBase {
   source?: string
   task_type?: string
   generated_at?: string
+  /** Generation job that minted this node; used for exact pending-card handoff. */
+  pending_job_id?: string
 }
 
 export type NoteSubtype = 'script' | 'shot'
@@ -253,6 +255,11 @@ export interface PendingGeneration {
   script?: string
   /** Audio-only: the spoken line for voice drafts. */
   text?: string
+  /** Failed result class/message, when a settled result is shown as a failed pad. */
+  klass?: string
+  message?: string
+  completed_at?: string
+  sent?: unknown
   /** Sidecar-persisted drag position. Survives refresh + stage
    * transitions so dragged draft/running pads keep their spot. */
   position?: { x: number; y: number }
@@ -267,6 +274,32 @@ export interface PendingGeneration {
    * end up with. Deduped against `reference_source_ids` upstream so
    * the same node never produces two dashed edges. */
   source_node_id?: string
+}
+
+export interface GenerationResult {
+  job_id: string
+  kind: 'image' | 'video' | 'audio'
+  status: 'succeeded' | 'failed' | 'aborted' | 'timeout'
+  ok: boolean
+  completed_at?: string
+  klass?: string
+  message?: string
+  node_id?: string | null
+  local_path?: string | null
+  output_url?: string | null
+  model?: string
+  prompt?: string
+  aspect_ratio?: string
+  image_size?: string
+  resolution?: string
+  duration?: number
+  cost_usd?: number
+  text?: string
+  position?: { x: number; y: number }
+  reference_source_ids?: string[]
+  source_node_id?: string
+  sent?: unknown
+  limits?: unknown
 }
 
 /** Bundle the viewer returns for `GET /projects/:id`. */
@@ -288,6 +321,8 @@ export interface ProjectBundle {
   }
   /** Pending-generation placeholder pads — empty array when no generator is running. */
   pending_generations?: PendingGeneration[]
+  /** Durable summaries from `.results/<jobId>.json`, newest first. */
+  generation_results?: GenerationResult[]
   /** True iff the user has opted out of the draft gate for this project. */
   dangerously_skip_draft_gate?: boolean
 }
