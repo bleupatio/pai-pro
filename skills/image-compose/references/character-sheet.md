@@ -1,10 +1,29 @@
-# Character reference sheet from actor refs — prompt template
+# Character reference sheet for video-bound characters — prompt template
 
-For `node "$PAI_REPO_ROOT/server/cli/generate_image.js"` with multiple `--ref-source-id` flags. Produces ONE composite 16:9 character reference sheet with FOUR panels (Front-full / Profile-full / Back-full / Closeup-bust) per character. The sheet is consumable directly as a `--ref-source-id` for downstream video gen — no cropping required for typical use.
+For `node "$PAI_REPO_ROOT/server/cli/generate_image_pro.js"` with exact `--size 2560x1440` by default and optional multiple `--ref-source-id` flags. Produces ONE composite 16:9 character reference sheet with FOUR panels (Front-full / Profile-full / Back-full / Closeup-bust) per character. The sheet is consumable directly as a `--ref-source-id` for downstream video gen — no cropping required for typical use.
+
+Default fire command shape for Mode A with actor refs:
+
+```
+node "$PAI_REPO_ROOT/server/cli/generate_image_pro.js" \
+  --prompt "<filled 4-panel prompt>" \
+  --size 2560x1440 \
+  --subtype character \
+  --name "<character_name>" \
+  --role "<role>" \
+  --ref-source-id <ref1> \
+  --ref-source-id <ref2> \
+  --ref-source-id <ref3> \
+  --source-node-id <ref1>
+```
+
+Pro tier accepts exact `--size` only. Do not pass `--aspect-ratio` or `--image-size` for this flow.
+
+For Mode B with no actor refs, use the same command but omit all `--ref-source-id` flags and omit `--source-node-id`.
 
 ## Contents
 
-- Pre-flight: identify the actor's reference photos on canvas
+- Pre-flight: choose Mode A or Mode B
 - The 4-panel sheet prompt (verbatim — fill `{{...}}` placeholders)
 - After firing: how the sheet plugs into video gen
 - Optional: per-angle anchor crops for stress-test fidelity
@@ -12,7 +31,7 @@ For `node "$PAI_REPO_ROOT/server/cli/generate_image.js"` with multiple `--ref-so
 - Gotchas (read before iterating)
 - Optional verification with `pai_analyze.compare` (internal toolset only)
 
-## Pre-flight: identify the actor's reference photos
+## Pre-flight: choose Mode A or Mode B
 
 This flow needs current uploaded refs, so per the project `PROJECT_AGENT.md` § "Choosing context", read `./workflow.json` and identify the reference image nodes for this character:
 
@@ -21,7 +40,7 @@ This flow needs current uploaded refs, so per the project `PROJECT_AGENT.md` § 
 - Skip archived nodes (`data.archived === true`)
 - Skip AI-generated images even if they share the `reference` subtype — only true uploaded photos belong in the ref set
 
-Confirm in one short line to the user before firing: *"Using image_X, image_Y, image_Z as reference photos for the sheet."* If only 1-2 refs are available, ask the user whether to fire anyway (model overfits to the one angle) or upload more first.
+Confirm in one short line to the user before firing: *"Using image_X, image_Y, image_Z as reference photos for the sheet."* If only 1-2 refs are available, do not pass them by default; ask whether the user wants to upload more refs or continue with Mode B text-only generation.
 
 ## The 4-panel sheet prompt — Mode A (with ≥3 actor reference photos)
 
@@ -48,7 +67,7 @@ EXACT same face in all 4 panels. EXACT same costume. EXACT same hair. Identical 
 No captions, no labels, no English words, no Chinese characters, no numbers, no headers, no gibberish text, no annotations, no logos. The image is purely visual.
 
 [OUTPUT]
-4K resolution, clean editorial layout, no decorative borders between panels.
+High-resolution 16:9 production sheet, clean editorial layout, no decorative borders between panels.
 ```
 
 For an elderly character, add to the `[PHOTOGRAPHIC AESTHETIC]` block: `actor's age signs preserved (deep wrinkles around eyes and mouth, age spots, white/silver beard hairs); do NOT youthify.`
@@ -83,7 +102,7 @@ EXACT same face in all 4 panels. EXACT same costume. EXACT same hair / accessori
 No captions, no labels, no English words, no Chinese characters, no numbers, no headers, no gibberish text, no annotations, no logos. The image is purely visual.
 
 [OUTPUT]
-4K resolution, clean editorial layout, no decorative borders between panels.
+High-resolution 16:9 production sheet, clean editorial layout, no decorative borders between panels.
 ```
 
 Mode B is less robust than Mode A — identity has to come from words alone, so the model has more freedom to drift between panels. Mitigations:
@@ -119,7 +138,7 @@ Workflow:
      projects/<id>/assets/images/<sheet>.jpg \
      --out projects/<id>/assets/.tmp/back_crop_$(date +%s).jpg
    ```
-   For a 16:9 2K sheet (2752×1536) with 4 equal panels: each panel is ~688px wide × 1536px tall. Front panel `--cropOffset 0 0`, profile `--cropOffset 0 688`, back `--cropOffset 0 1376`, closeup `--cropOffset 0 2064`. Tighten to the figure as needed.
+   For the default pro 16:9 sheet (`--size 2560x1440`) with 4 equal panels: each panel is ~640px wide × 1440px tall. Front panel `--cropOffset 0 0`, profile `--cropOffset 0 640`, back `--cropOffset 0 1280`, closeup `--cropOffset 0 1920`. Tighten to the figure as needed.
 
 2. **Upload to canvas** as a new reference node via `canvas_mutate`:
    ```
@@ -149,11 +168,11 @@ Template holds across character archetypes. If your character's costume looks dr
 
 1. **Don't write a textbook costume description in the prompt.** If you describe what the costume "should" look like and that disagrees with the refs, the model renders YOUR text instead of what the refs show. The "REFERENCE-PHOTO PRIORITY" clause neutralizes this — keep it in place and let the refs drive. Validated cost when violated: −20 points on a worst-case mismatch.
 
-2. **Use `EXACTLY THREE / SIX / FOUR` panel counts** if you ever add expression or pose modules. Without exact counts, nano-banana substitutes module types (drops the expression panel and adds extra texture swatches instead).
+2. **Use `EXACTLY THREE / SIX / FOUR` panel counts** if you ever add expression or pose modules. Without exact counts, the model may substitute module types, such as dropping an expression panel and adding texture swatches instead.
 
-3. **The "no text" rule has to be repeated 3×** in the prompt to be reliable — once at the top, once in the layout section, once at the end. Even then nano-banana sometimes sneaks in panel labels at the bottom of the sheet ("FRONT VIEW" / "PROFILE VIEW" / etc.). Cosmetic only; doesn't affect downstream video performance. Crop them off post-hoc if they bother you.
+3. **The "no text" rule has to be repeated 3×** in the prompt to be reliable — once at the top, once in the layout section, once at the end. Even then the model can sneak in panel labels at the bottom of the sheet ("FRONT VIEW" / "PROFILE VIEW" / etc.). Cosmetic only; doesn't affect downstream video performance. Crop them off post-hoc if they bother you.
 
-4. **Don't include `--source-node-id` for a fictional character with no parent ref.** This is the Pattern 7 case where multi-ref *is* the input; pass `--source-node-id <ref1>` so the sheet has at least one authorship edge for canvas DAG provenance.
+4. **Only include `--source-node-id` when there is a real parent ref.** Mode A passes `--source-node-id <ref1>` so the sheet has an authorship edge. Mode B has no parent ref, so omit `--source-node-id`.
 
 5. **One sheet per character.** Don't try to put two characters in the same 4-panel sheet. Identity drift between halves of the canvas is a real failure mode; the 4-panel layout assumes a single subject.
 

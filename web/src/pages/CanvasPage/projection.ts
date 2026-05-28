@@ -196,6 +196,7 @@ function imageNodeData(n: ImageResultNode, shortId: string, derivedRefs: MediaRe
     derived_refs: derivedRefs,
     metadata: {
       aspect_ratio: d.metadata?.aspect_ratio,
+      size: d.metadata?.size,
       image_size: d.metadata?.image_size,
       model: d.metadata?.model,
       source: d.metadata?.source,
@@ -463,6 +464,7 @@ export function projectWorkflowToCanvas(
         aspect_ratio: pg.aspect_ratio,
         references: refs,
         model: pg.model,
+        size: pg.size,
         image_size: pg.image_size,
         resolution: pg.resolution,
         duration: pg.duration,
