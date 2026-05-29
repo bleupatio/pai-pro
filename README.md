@@ -29,48 +29,18 @@ PAI-Pro is a local-first AI filmmaking workspace built around four things:
 - **A visual canvas and timeline** for designing scenes, managing assets, arranging shots, and keeping larger productions organized.
 - **One API service for story media** across image, video, and voice, so productions do not need separate providers for each step.
 
-## Agent support
-
-| Agent | How to start |
-| --- | --- |
-| <img src="https://cdn.jsdelivr.net/npm/simple-icons/icons/anthropic.svg" alt="Anthropic" width="16" height="16" /> **[Claude Code][claude-code-url]** | Docker: `docker compose up --build`. Host: `./scripts/setup --agent claude` then `./scripts/start.sh`. |
-| <img src="https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/openai/light.svg" alt="OpenAI" width="16" height="16" /> **[Codex][codex-url]** | Docker: `PAI_DEFAULT_AGENT_ID=codex docker compose up --build`. Host: `./scripts/setup --agent codex` then `PAI_DEFAULT_AGENT_ID=codex ./scripts/start.sh`. |
-
-See [AI coding agent compatibility](docs/agents.md) for the full matrix and per-agent behavior.
-
 ## Quick start
 
-**With Docker (the on-ramp):**
+Use Claude Code or Codex to install PAI-Pro for you. Paste this into your agent:
 
-```bash
-git clone https://github.com/Utopai-Research/pai-pro.git ~/pai-pro
-cd ~/pai-pro
-cp .env.example .env
-# Get your PAI_KEY at https://pai-pro.utopaistudios.com/keys (format: PAI_<random>)
-printf "Paste your PAI_KEY: " && read -r key && sed -i.bak "s|^PAI_KEY=.*|PAI_KEY=$key|" .env && rm -f .env.bak
-docker compose up --build
-```
+> Clone [`https://github.com/Utopai-Research/pai-pro`](https://github.com/Utopai-Research/pai-pro), read the setup docs in [README.md](README.md), [docs/docker.md](docs/docker.md), [docs/development.md](docs/development.md), and [docs/agents.md](docs/agents.md), then install PAI-Pro for my current agent. Ask me for my `PAI_KEY`, use Docker unless I ask for local development, and start the app when setup is complete.
 
-When the logs say `PAI Pro is ready`, open <http://localhost:7588>. New projects use Claude Code by default. To make new Docker projects use Codex instead, start with:
+| Choose | Commands |
+| --- | --- |
+| <img src="https://cdn.jsdelivr.net/npm/simple-icons/icons/anthropic.svg" alt="Anthropic" width="16" height="16" /> **[Claude Code][claude-code-url]** | Docker: `docker compose up --build`<br />Local: if ports are busy, run `./scripts/stop.sh` first; then `./scripts/setup --agent claude` and `./scripts/start.sh` |
+| <img src="https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/openai/light.svg" alt="OpenAI" width="16" height="16" /> **[Codex][codex-url]** | Docker: `PAI_DEFAULT_AGENT_ID=codex docker compose up --build`<br />Local: if ports are busy, run `./scripts/stop.sh` first; then `./scripts/setup --agent codex` and `PAI_DEFAULT_AGENT_ID=codex ./scripts/start.sh` |
 
-```bash
-PAI_DEFAULT_AGENT_ID=codex docker compose up --build
-```
-
-**Or paste this block into your coding agent** — Claude Code / Codex / Cursor / Gemini CLI all consume it the same way (host mode, Vite HMR for live reload):
-
-```bash
-git clone https://github.com/Utopai-Research/pai-pro.git ~/pai-pro && cd ~/pai-pro
-./scripts/setup --agent claude && npm --prefix server install && npm --prefix web install
-cp .env.example .env
-# Get your PAI_KEY at https://pai-pro.utopaistudios.com/keys (format: PAI_<random>)
-printf "Paste your PAI_KEY: " && read -r key && sed -i.bak "s|^PAI_KEY=.*|PAI_KEY=$key|" .env && rm -f .env.bak
-./scripts/start.sh
-```
-
-For Codex-owned new projects in host mode, run `./scripts/setup --agent codex`, then start with `PAI_DEFAULT_AGENT_ID=codex ./scripts/start.sh`. Open <http://localhost:7443>. Sign in to the selected CLI in the embedded terminal if prompted.
-
-> See [docs/docker.md](docs/docker.md) for the multi-stage build internals, Windows / WSL2 notes, and what the image contains. [docs/development.md](docs/development.md) covers the host-mode Vite HMR loop and contributor setup.
+Open Docker at <http://localhost:7588> or local at <http://localhost:7443>.
 
 ## API key
 
