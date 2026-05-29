@@ -20,16 +20,14 @@
 
 </div>
 
-Filmmaking skills + a React Flow canvas + an embedded coding-agent terminal. Write a screenplay, design characters, generate clips, lay them out on a timeline — all from inside Claude Code or Codex. Local-first: project files live on disk, generated media mirrors alongside, nothing leaves your machine except the actual generation calls. Built by [Utopai Studios](https://www.utopaistudios.com/).
+## What's PAI-Pro?
 
-## Key capabilities
+PAI-Pro is a local-first AI filmmaking workspace built around four things:
 
-- **Filmmaking skills** in standard SKILL.md format — image, video, voice, script, groups, notes, summary. ([Reference →](docs/skills.md))
-- **A React Flow canvas** with character / location / image / video / note nodes, grouped scenes, mention-pill references.
-- **A Timeline tab** that plays your shots in sequence — drag clips onto the reel, reorder, scrub.
-- **Embedded agent terminal** in the right rail. Real PTY, tmux-style, auto-resumes the project session.
-- **Per-project memory** — every project owns its `workflow.json` and asset folder; agent context follows when you switch.
-- **Bring-your-own coding agent** — Claude Code and Codex are wired into the embedded terminal; Cursor / Gemini CLI can still use the same SKILL.md format in host mode. ([Compatibility →](docs/agents.md))
+- **Your own [Claude Code][claude-code-url] or [Codex][codex-url]**, capable agents connected to local project files, persistent context, and customized filmmaking workflows.
+- **End-to-end filmmaking skills** for scripts, images, videos, and voice. ([More skill details](docs/skills.md))
+- **A visual canvas and timeline** for designing scenes, managing assets, arranging shots, and keeping larger productions organized.
+- **One API service for story media** across image, video, and voice, so productions do not need separate providers for each step.
 
 ## Agent support
 
